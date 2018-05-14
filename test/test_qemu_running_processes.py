@@ -130,8 +130,7 @@ def ssh_run(args, command):
                                  "-o", "UserKnownHostsFile=/dev/null",
                                  "-o", "StrictHostKeyChecking=no",
                                  "-p", "2222", "testuser@localhost", "--",
-                                 command],
-                          check=False, return_stdout=True)
+                                 command], output_return=True, check=False)
     return ret
 
 
