@@ -238,9 +238,14 @@ def core(args, log_message, cmd, working_dir=None, output="log",
     # Foreground
     output_after_run = ""
     if output == "tui":
+        # Foreground TUI
         code = foreground_tui(cmd, working_dir)
     else:
-        output_to_stdout = output in ["stdout", "interactive"]
+        # Foreground pipe (always redirects to the error log file)
+        output_to_stdout = False
+        if not args.details_to_stdout and output in ["stdout", "interactive"]:
+            output_to_stdout = True
+
         output_timeout = output in ["log", "stdout"]
         (code, output_after_run) = foreground_pipe(args, cmd, working_dir,
                                                    output_to_stdout,
