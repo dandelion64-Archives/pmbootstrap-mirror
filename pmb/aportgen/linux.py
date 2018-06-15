@@ -26,7 +26,7 @@ def generate_apkbuild(args, pkgname, deviceinfo):
     device = "-".join(pkgname.split("-")[1:])
     carch = pmb.parse.arch.alpine_to_kernel(deviceinfo["arch"])
 
-    makedepends = "perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev"
+    makedepends = "perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev devicepkg-dev"
 
     package = """
             # kernel.release
@@ -95,23 +95,8 @@ def generate_apkbuild(args, pkgname, deviceinfo):
         builddir="$srcdir/${_repository}-${_commit}"
 
         prepare() {
-            default_prepare
-
-            # gcc6 support
-            cp -v "$srcdir/compiler-gcc6.h" "$builddir/include/linux/"
-
-            # Remove -Werror from all makefiles
-            local i
-            local makefiles="$(find . -type f -name Makefile)
-                $(find . -type f -name Kbuild)"
-            for i in $makefiles; do
-                sed -i 's/-Werror-/-W/g' "$i"
-                sed -i 's/-Werror//g' "$i"
-            done
-
-            # Prepare kernel config ('yes ""' for kernels lacking olddefconfig)
-            cp "$srcdir"/$_config "$builddir"/.config
-            yes "" | make ARCH="$_carch" HOSTCC="$HOSTCC" oldconfig
+            . /usr/share/pmbootstrap/kernelpkg_functions.sh
+            downstreamkernel_prepare
         }
 
         build() {""" + build + """
