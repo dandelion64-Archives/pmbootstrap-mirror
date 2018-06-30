@@ -14,7 +14,6 @@ if [ -z "$srcdir" ] || [ -z "$builddir" ] || [ -z "$_config" ] ||
 fi
 
 # gcc6 support
-# shellcheck disable=SC2154
 cp -v "$srcdir/compiler-gcc6.h" "$builddir/include/linux/"
 
 # Remove -Werror from all makefiles
