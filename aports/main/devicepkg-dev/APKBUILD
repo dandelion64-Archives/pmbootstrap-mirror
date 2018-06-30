@@ -8,7 +8,7 @@ license="MIT"
 source="
 	devicepkg_build.sh
 	devicepkg_package.sh
-	kernelpkg_functions.sh
+	downstreamkernel_prepare.sh
 "
 
 package() {
@@ -16,9 +16,9 @@ package() {
 		"$pkgdir/usr/bin/devicepkg_build"
 	install -Dm755 "$srcdir/devicepkg_package.sh" \
 		"$pkgdir/usr/bin/devicepkg_package"
-	install -Dm755 "$srcdir/kernelpkg_functions.sh" \
-		"$pkgdir/usr/share/pmbootstrap/kernelpkg_functions.sh"
+	install -Dm755 "$srcdir/downstreamkernel_prepare.sh" \
+		"$pkgdir/usr/bin/downstreamkernel_prepare"
 }
 sha512sums="638d50e6388eabf0da6bf0cff2fe9719ad8a808946f0077228db57fa13a26d9eeb39c1f2689c9a6f93ff9b3bcfdcfb7c358b180bba90e5bba8b9a9e78d25ed18  devicepkg_build.sh
 c732792596f56860f6ab9ddd53b9a7a80224400dd20097b20cebe17a6e7330e9178783f09db16132a28a555f83e29ef3643bfe069638b62998912a9a7ffefdc0  devicepkg_package.sh
-f72f9f7ed1110f3cd343f8df6ebdf6d893ffbf38a45298da7a080bf1c83665b9b191b2f6c93dbaad891579c7b66cdc946a83f9bc097d3b6d7d219c7994a0ec8c  kernelpkg_functions.sh"
+229188b111b4e5928c53c4216d5496d641074d3b8dcd32e768d97708be0b692a91be28adb5a7338292f275d974e5492c726ccc449d8db867da1199204cbc2220  downstreamkernel_prepare.sh"

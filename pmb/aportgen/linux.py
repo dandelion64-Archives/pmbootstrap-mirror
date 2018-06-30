@@ -95,8 +95,8 @@ def generate_apkbuild(args, pkgname, deviceinfo):
         builddir="$srcdir/${_repository}-${_commit}"
 
         prepare() {
-            . /usr/share/pmbootstrap/kernelpkg_functions.sh
-            downstreamkernel_prepare
+            default_prepare
+            downstreamkernel_prepare "$srcdir" "$builddir" "$_config" "$_carch" "$HOSTCC"
         }
 
         build() {""" + build + """
