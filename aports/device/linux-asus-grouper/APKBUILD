@@ -1,59 +1,96 @@
+# APKBUILD based on linux-vanilla aport. Changes:
+# - disabled module installation
+# - add !check !tracedeps
+# - package: just install zimage and kernel.release, because the kernel config
+#	does not generate modules or dtb files
+# - do not create -dev subpackage (makes no sense without module support)
+#
 # Kernel config based on: arch/arm/configs/lineageos_grouper_defconfig
-pkgname="linux-asus-grouper"
-pkgver=3.4.0
-pkgrel=8
-pkgdesc="Nexus 7 (2012) kernel from LineageOS"
-arch="armhf"
-_carch="arm"
-_flavor="asus-grouper"
-url="https://github.com/LineageOS/android_kernel_asus_grouper"
-license="GPL2"
-options="!strip !check !tracedeps"
-makedepends="perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev devicepkg-dev"
-HOSTCC="${CC:-gcc}"
-HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+# Changes:
+# - enable devtmpfs (needed for udev -> touch support in weston)
+# - disable ANDROID_PARANOID_NETWORK (removes network restrictions)
 
-# Source
-_repository="android_kernel_asus_grouper"
-_commit="953e26f2709dfe0c185c3c99c50b0c9d56d473a4"
-_config="config-${_flavor}.${arch}"
+_vendor=asus
+_flavor=asus-grouper
+_hash="953e26f2709dfe0c185c3c99c50b0c9d56d473a4"
+_config="config-${_flavor}.armhf"
+
+pkgname=linux-${_flavor}
+pkgver=3.4.0
+case $pkgver in
+	*.*.*)  _kernver=${pkgver%.*};;
+	*.*) _kernver=$pkgver;;
+esac
+pkgrel=8
+arch="armhf"
+pkgdesc="Nexus 7 (2012) kernel from LineageOS"
+url="https://github.com/LineageOS/android_kernel_asus_grouper"
+depends=""
+makedepends="perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev"
+options="!strip !check !tracedeps"
+install=
 source="
-	$pkgname-$_commit.tar.gz::https://github.com/LineageOS/${_repository}/archive/${_commit}.tar.gz
+	$pkgname-$_hash.tar.gz::https://github.com/LineageOS/android_kernel_asus_grouper/archive/${_hash}.tar.gz
 	$_config
 	compiler-gcc6.h
 	duplicate-return-address-definition.patch
 "
-builddir="$srcdir/${_repository}-${_commit}"
+subpackages=""
+license="GPL2"
+
+_abi_release=${pkgver}
+_carch="arm"
+HOSTCC="${CC:-gcc}"
+HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+
+#ksrcdir="$srcdir/${_vendor}-kernel-grouper-${_hash}"
+ksrcdir="$srcdir/android_kernel_asus_grouper-${_hash}"
 
 prepare() {
-	default_prepare
-	downstreamkernel_prepare "$srcdir" "$builddir" "$_config" "$_carch" "$HOSTCC"
+	local _patch_failed=
+	cd "$ksrcdir"
+
+	# first apply patches in specified order
+	for i in $source; do
+		case $i in
+		*.patch)
+			msg "Applying $i..."
+			if ! patch -s -p1 -N -i "$srcdir"/$i; then
+				echo $i >>failed
+				_patch_failed=1
+			fi
+			;;
+		esac
+	done
+
+	if ! [ -z "$_patch_failed" ]; then
+		error "The following patches failed:"
+		cat failed
+		return 1
+	fi
+
+	# gcc6 support
+	cp -v "$srcdir/compiler-gcc6.h" "$ksrcdir/include/linux/"
+
+	mkdir -p "$srcdir"/build
+	cp "$srcdir"/$_config "$srcdir"/build/.config
+	make -C "$ksrcdir" O="$srcdir"/build ARCH="$_carch" HOSTCC="$HOSTCC" \
+		silentoldconfig
 }
 
 build() {
+	cd "$srcdir"/build
 	unset LDFLAGS
 	make ARCH="$_carch" CC="${CC:-gcc}" \
-		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-Alpine"
 }
 
 package() {
-	# kernel.release
-	install -D "$builddir/include/config/kernel.release" \
-		"$pkgdir/usr/share/kernel/$_flavor/kernel.release"
+	install -Dm644 "$srcdir/build/arch/arm/boot/zImage" \
+		"$pkgdir/boot/vmlinuz-$_flavor"
 
-	# zImage (find the right one)
-	cd "$builddir/arch/$_carch/boot"
-	_target="$pkgdir/boot/vmlinuz-$_flavor"
-	for _zimg in zImage-dtb Image.gz-dtb *zImage Image; do
-		[ -e "$_zimg" ] || continue
-		msg "zImage found: $_zimg"
-		install -Dm644 "$_zimg" "$_target"
-		break
-	done
-	if ! [ -e "$_target" ]; then
-		error "Could not find zImage in $PWD!"
-		return 1
-	fi
+	install -D "$srcdir/build/include/config/kernel.release" \
+		"$pkgdir/usr/share/kernel/$_flavor/kernel.release"
 }
 
 sha512sums="11ba20986552a0b913de2a7d756d31ad9f4f67561cb88988737bba07997f00b7574604d1c19f6d890502208f12a21d48d4044edc5a8db5174b2a49d4a87573e3  linux-asus-grouper-953e26f2709dfe0c185c3c99c50b0c9d56d473a4.tar.gz
