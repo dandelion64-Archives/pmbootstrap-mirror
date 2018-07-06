@@ -61,8 +61,7 @@ def get_subpartitions_size(args):
     # /dev/installp2
     full = root - home
 
-    # Add some free space, see also:
-    # https://github.com/postmarketOS/pmbootstrap/pull/336
+    # Add some free space, see also: #336
     full *= 1.20
     full += 50 * 1024 * 1024
     boot += 15 * 1024 * 1024
@@ -185,6 +184,8 @@ def set_user(args):
         pmb.chroot.root(args, ["adduser", "-D", "-u", "1000", args.user],
                         suffix)
         for group in pmb.config.install_user_groups:
+            pmb.chroot.root(args, ["addgroup", "-S", group], suffix,
+                            check=False)
             pmb.chroot.root(args, ["addgroup", args.user, group], suffix)
 
 
