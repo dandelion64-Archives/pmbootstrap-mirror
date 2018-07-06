@@ -39,9 +39,10 @@ def sanity_checks(output="log", output_return=False, check=None,
     if output not in ["log", "stdout", "interactive", "tui", "background"]:
         raise RuntimeError("Invalid output value: " + str(output))
 
-    # Prevent output="background" with check=False
-    # The exit code won't be checked anyway, and it makes it seem like you
-    # could change it to check=True to get it checked (which is not the case).
+    # Prevent setting the check parameter with output="background".
+    # The exit code won't be checked when running in background, so it would
+    # always by check=False. But we prevent it from getting set to check=False
+    # as well, so it does not look like you could change it to check=True.
     if check is not None and output == "background":
         raise RuntimeError("Can't use check with output: background")
 
