@@ -32,3 +32,6 @@ python -m pytest -vv --cov=pmb --tb=native ./test/test_aportgen.py
 
 # test_soname_bump
 python -m pytest -vv --cov=pmb --tb=native ./test/test_soname_bump.py
+
+# test_upstream_compatibility
+python -m pytest -vv --cov=pmb --tb=native ./test/test_upstream_compatibility.py
