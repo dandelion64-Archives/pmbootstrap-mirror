@@ -96,7 +96,7 @@ def test_foreground_pipe(args):
 
     # Kill with output timeout as root
     cmd = ["sudo", "sh", "-c", "printf first; sleep 3; printf second"]
-    args.timeout = 2
+    args.timeout = 1
     ret = func(args, cmd, output_return=True, output_timeout=True,
                kill_as_root=True)
     assert ret == (-9, "first")
