@@ -89,14 +89,14 @@ def test_foreground_pipe(args):
     assert func(args, cmd, output_return=True) == (0, "test\n")
 
     # Kill with output timeout
-    cmd = ["sh", "-c", "echo first; sleep 3; echo second"]
-    args.timeout = 2
+    cmd = ["sh", "-c", "echo first; sleep 2; echo second"]
+    args.timeout = 0.3
     ret = func(args, cmd, output_return=True, output_timeout=True)
     assert ret == (-9, "first\n")
 
     # Kill with output timeout as root
-    cmd = ["sudo", "sh", "-c", "printf first; sleep 3; printf second"]
-    args.timeout = 1
+    cmd = ["sudo", "sh", "-c", "printf first; sleep 2; printf second"]
+    args.timeout = 0.3
     ret = func(args, cmd, output_return=True, output_timeout=True,
                kill_as_root=True)
     assert ret == (-9, "first")
@@ -104,7 +104,7 @@ def test_foreground_pipe(args):
     # Finish before timeout
     cmd = ["sh", "-c", "echo first; sleep 0.1; echo second; sleep 0.1;"
            "echo third; sleep 0.1; echo fourth"]
-    args.timeout = 2
+    args.timeout = 0.2
     ret = func(args, cmd, output_return=True, output_timeout=True)
     assert ret == (0, "first\nsecond\nthird\nfourth\n")
 
