@@ -77,7 +77,7 @@ def get_outputdir(args, pkgname):
     cmd = "srcdir=/home/pmos/build/src source APKBUILD; echo $builddir"
     ret = pmb.chroot.user(args, ["sh", "-c", cmd],
                           "native", "/home/pmos/build",
-                          return_stdout=True).rstrip()
+                          output_return=True).rstrip()
     if os.path.exists(chroot + ret + "/.config"):
         return ret
 
