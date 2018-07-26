@@ -19,5 +19,4 @@ package() {
 	devicepkg_package $startdir $pkgname
 }
 
-sha512sums="(run 'pmbootstrap checksum device-xiaomi-cancro' to fill)"
-
+sha512sums="b40f9a03ed6dfbd5b09f80d6605fb543f9e90d658eb107c3297edcf05c92cc0a95f6d3d36c34095dabd4e814e55393763ec6f32bd5afd85e55f544a3a8581234  deviceinfo"
