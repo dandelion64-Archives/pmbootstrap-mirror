@@ -1,4 +1,4 @@
-# Kernel config based on: arch/arm/configs/(CHANGEME!)
+# Kernel config based on: arch/arm/configs/lineage_zeal_defconfig
 
 pkgname="linux-nokia-rm885"
 pkgver=3.4.0
