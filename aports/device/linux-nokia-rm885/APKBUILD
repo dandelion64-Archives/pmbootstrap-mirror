@@ -23,7 +23,7 @@ source="
 	$_config
 	compiler-gcc6.h
 	00_fix_return_address.patch
-    psmouse_base.patch
+	psmouse_base.patch
 	02_gpu-msm-fix-gcc5-compile.patch
 "
 builddir="$srcdir/${_repository}-${_commit}"
