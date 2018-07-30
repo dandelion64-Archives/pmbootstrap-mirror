@@ -3,7 +3,7 @@
 pkgname="linux-samsung-jflte"
 pkgver=3.4.112
 pkgrel=3
-pkgdesc="Samsung Galaxy S4 International kernel fork"
+pkgdesc="Samsung Galaxy S4 kernel fork"
 arch="armhf"
 _carch="arm"
 _flavor="samsung-jflte"
