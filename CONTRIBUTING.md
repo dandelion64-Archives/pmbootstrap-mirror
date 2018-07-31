@@ -32,7 +32,7 @@ This is a reST style.
 """
 ```
 
-* If it is feasible for you, try to run the testsuite on code that you have changed. The `test/test_build.py` case will build full cross-compilers for `aarch64` and `armhf`, so it may take a long time. Testcases can be started with `pytest` and it's planned to run that automatically when making a new PR (see #64).
+* If it is feasible for you, try to run the testsuite on code that you have changed. The `test/test_build.py` case will build full cross-compilers for `aarch64` and `armhf`, so it may take a long time. Testcases can be started with `pytest` and it's planned to run that automatically when making a new merge request (see #64).
 
 
 **If you need any help, don't hesitate to open an [issue](https://gitlab.com/postmarketOS/pmbootstrap/issues) and ask!**
