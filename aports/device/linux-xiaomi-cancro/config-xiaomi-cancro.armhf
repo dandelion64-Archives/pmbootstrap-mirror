@@ -3232,7 +3232,7 @@ CONFIG_BIF_QPNP=y
 #
 # TouchSense driver support
 #
-CONFIG_TSPDRV=y
+# CONFIG_TSPDRV is not set
 CONFIG_IIO=y
 CONFIG_IIO_BUFFER=y
 # CONFIG_IIO_BUFFER_CB is not set
