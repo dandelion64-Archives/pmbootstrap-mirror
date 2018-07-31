@@ -24,6 +24,11 @@ source="
 	compiler-gcc6.h
 	01_smd_private.patch
 	02_gpu-msm-fix-gcc5-compile.patch
+	03t_spdrv.patch
+	tspdrv_2.patch
+	tspdrv_3.patch
+	tspdrv_4.patch
+	tspdrv_5.patch
 	05_q6voice.patch
 "
 builddir="$srcdir/${_repository}-${_commit}"
