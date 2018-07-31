@@ -1,6 +1,6 @@
 pkgname=postmarketos-ui-matchbox
 pkgver=1
-pkgrel=2
+pkgrel=3
 pkgdesc="(X11) Very basic user interface for handhelds"
 url="https://matchbox-project.org"
 arch="noarch"

@@ -1,6 +1,6 @@
 pkgname=postmarketos-ui-hildon
 pkgver=1
-pkgrel=4
+pkgrel=5
 pkgdesc="(X11) Lightweight GTK+2 UI (optimized for single-touch touchscreens)"
 url="https://postmarketos.org"
 arch="noarch"
