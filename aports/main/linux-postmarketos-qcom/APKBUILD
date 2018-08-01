@@ -4,7 +4,7 @@ _config="config-${_flavor}.${CARCH}"
 pkgname=linux-${_flavor}
 
 pkgver=4.17_rc3
-pkgrel=4
+pkgrel=5
 
 arch="armhf"
 pkgdesc="Kernel close to mainline with extra patches for Qualcomm devices"
@@ -17,6 +17,7 @@ _commit="09efb4857f1a4119eced855912043817bd96e064"
 source="
 	linux-${_commit}.tar.gz::https://gitlab.com/postmarketOS/linux-postmarketos/-/archive/${_commit}/linux-postmarketos-${_commit}.tar.gz
 	config-${_flavor}.armhf
+	0001-ARM-8764-1-kgdb-fix-NUMREGBYTES-so-that-gdb_regs-is-.patch
 "
 
 subpackages="$pkgname-dev"
@@ -175,4 +176,5 @@ dev() {
 	fi
 }
 sha512sums="02fd136d24914e30decd207c3b2e0168cc9d6e4a0fc981abf8d537cd95c70583f5239d0dc7f2ae94a2ddd2ba82d822933159167801a035731a24aa1300c5ceec  linux-09efb4857f1a4119eced855912043817bd96e064.tar.gz
-1961f051e2f4c3fad3fde69b08b277e3784a256115a8f30604e6b1973fd323e17ed9e5e55a3daf1a2d72770168d164ed060ff2a330d45d6cd6e3c59d4530d092  config-postmarketos-qcom.armhf"
+a3f78bc83e7d3dc8c718bf45c6a834716990371b8dff52039bf43745ac3b1eb61bb4f4fa1f54c64878349540798bb3926dd0c5cd7287270b8a3571b428916495  config-postmarketos-qcom.armhf
+514f30cc581425e99531e843353342f4cd1ad73eec00a18e3b04f823f60d16d8282cf93eb2398a972af3ef21dcdad87d79863c051bd86f30ca8bf3de88479172  0001-ARM-8764-1-kgdb-fix-NUMREGBYTES-so-that-gdb_regs-is-.patch"
