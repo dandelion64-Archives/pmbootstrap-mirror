@@ -28,9 +28,18 @@ done
 mount --bind /tmp/postmarketos/pmos.log "$CHROOT"/pmos.log
 mount --bind "$ZIP" "$CHROOT"/pmos.zip
 
+fstabRecoveryName="twrp.fstab"
+# TWRP since 3.2.0 uses twrp.fstab instead of recovery.fstab
+# This check exists to support legacy TWRP
+if [ ! -e "/etc/"$fstabRecoveryName ]; then
+	fstabRecoveryName="recovery.fstab"
+fi
+
 # Create copy of fstab file provided by the recovery
-cp /etc/recovery.fstab "$CHROOT"/recovery.fstab || {
-	[ "$?" = '255' ] && echo 'recovery.fstab not found, continuing...' || exit "$?" ; }
+if ! cp /etc/$fstabRecoveryName "$CHROOT"/$fstabRecoveryName; then
+	echo "Error copying $fstabRecoveryName , exiting..."
+	exit 1
+fi
 
 # Mount necessary filesystems for the chroot
 for mountpoint in "/dev" "/proc" "/sys"
