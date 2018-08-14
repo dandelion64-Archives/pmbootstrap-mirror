@@ -32,8 +32,8 @@ ui_print() {
 
 extract_partition_table() {
 	fstabRecoveryName="twrp.fstab"
-# TWRP can use twrp.fstab instead of recovery.fstab
-# This check exists to support both formats.
+	# TWRP can use twrp.fstab instead of recovery.fstab
+	# This check exists to support both formats.
 	if [ ! -e "/"$fstabRecoveryName ]; then
 		fstabRecoveryName="recovery.fstab"
 	fi
