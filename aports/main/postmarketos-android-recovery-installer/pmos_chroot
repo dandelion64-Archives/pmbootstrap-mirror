@@ -28,16 +28,16 @@ done
 mount --bind /tmp/postmarketos/pmos.log "$CHROOT"/pmos.log
 mount --bind "$ZIP" "$CHROOT"/pmos.zip
 
-fstabRecoveryName="twrp.fstab"
-# TWRP can use twrp.fstab instead of recovery.fstab
+fstab_recovery="recovery.fstab"
+# TWRP can use twrp.fstab instead of recovery.fstab (device specific)
 # This check exists to support both formats.
-if [ ! -e "/etc/"$fstabRecoveryName ]; then
-	fstabRecoveryName="recovery.fstab"
+if [ ! -e "/etc/"$fstab_recovery ]; then
+	fstab_recovery="twrp.fstab"
 fi
 
 # Create copy of fstab file provided by the recovery
-if ! cp /etc/$fstabRecoveryName "$CHROOT"/$fstabRecoveryName; then
-	echo "Error copying $fstabRecoveryName , exiting..."
+if ! cp /etc/$fstab_recovery "$CHROOT"/$fstab_recovery; then
+	echo "Error copying $fstab_recovery , exiting..."
 	exit 1
 fi
 
