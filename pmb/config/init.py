@@ -225,7 +225,7 @@ def ask_for_device(args):
             if device == args.device:
                 raise RuntimeError(
                     "This device does not exist anymore, check"
-                    " https://wiki.postmarketos.org/wiki/Renamed_Devices"
+                    " <https://postmarketos.org/renamed>"
                     " to see if it was renamed")
             logging.info("You are about to do a new device port for '" +
                          device + "'.")
