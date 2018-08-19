@@ -1,7 +1,7 @@
 # Reference: <https://postmarketos.org/devicepkg>
 pkgname="device-fairphone-fp2"
 pkgdesc="Fairphone 2"
-pkgver=0.1
+pkgver=2
 pkgrel=0
 url="https://postmarketos.org"
 license="MIT"
@@ -10,6 +10,7 @@ options="!check"
 depends="postmarketos-base linux-fairphone-fp2 mkbootimg mesa-dri-swrast"
 makedepends="devicepkg-dev"
 source="deviceinfo"
+subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
 
 build() {
 	devicepkg_build $startdir $pkgname
@@ -19,4 +20,10 @@ package() {
 	devicepkg_package $startdir $pkgname
 }
 
-sha512sums="9a92850e3d98492b0c791f9ef818f93d9e90eab9083cdf26bb3fd0dbd44b3ccb122ce71b9671dfb8029d7d7d52b31dca8dec10cab5680c223ea64f074d852c57  deviceinfo"
+nonfree_firmware() {
+	pkgdesc="WCNSS firmware (WiFi, Bluetooth, FM)"
+	depends="firmware-fairphone-fp2"
+	mkdir "$subpkgdir"
+}
+
+sha512sums="cd68ddc663ccf88f4b8ffd6abc2790ce168fc2a75f485226a62f49bd83407637d7c657452c86989ff575d760a05cbcd94f360cd4daa61f0a3dd0356c587490fc  deviceinfo"

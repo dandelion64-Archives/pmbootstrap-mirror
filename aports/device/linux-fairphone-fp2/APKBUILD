@@ -2,7 +2,7 @@
 
 pkgname="linux-fairphone-fp2"
 pkgver=3.4.0
-pkgrel=0
+pkgrel=7
 pkgdesc="Fairphone 2 kernel fork"
 arch="armhf"
 _carch="arm"
