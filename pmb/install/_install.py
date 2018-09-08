@@ -286,6 +286,14 @@ def setup_hostname(args):
     pmb.chroot.root(args, ["sed", "-i", "-e", regex, "/etc/hosts"], suffix)
 
 
+def write_uboot_spl(args):
+    if args.deviceinfo["write_uboot_spl"]:
+        logging.info("Writing the u-boot spl to the SD card with 8KB offset")
+        device_rootfs = mount_device_rootfs(args)
+        filename = os.path.join(device_rootfs, args.deviceinfo["write_uboot_spl"].lstrip("/"))
+        pmb.chroot.root(args, ["dd", "if=" + filename, "of=/dev/install", "bs=1024", "seek=8"])
+
+
 def install_system_image(args):
     # Partition and fill image/sdcard
     logging.info("*** (3/5) PREPARE INSTALL BLOCKDEVICE ***")
@@ -314,6 +322,7 @@ def install_system_image(args):
     create_home_from_skel(args)
     configure_apk(args)
     copy_ssh_keys(args)
+    write_uboot_spl(args)
     pmb.chroot.shutdown(args, True)
 
     # Convert rootfs to sparse using img2simg
