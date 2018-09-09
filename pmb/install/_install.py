@@ -289,8 +289,18 @@ def setup_hostname(args):
 def write_uboot_spl(args):
     if args.deviceinfo["write_uboot_spl"]:
         logging.info("Writing the u-boot spl to the SD card with 8KB offset")
+
+        spl_file = os.path.join("/usr/share/u-boot/", args.deviceinfo["write_uboot_spl"])
+        spl_size = os.path.getsize(args.work + "/chroot_rootfs_" + args.device + spl_file)
+
+        # First partition is at 2048 sectors, spl offset is at 8K
+        spl_max_size = (2048 * 512) - (8 * 1024)
+
+        if spl_size > spl_max_size:
+            raise RuntimeError("U-boot SPL image is too big {}B > {}B".format(spl_size, spl_max_size))
+
         device_rootfs = mount_device_rootfs(args)
-        filename = os.path.join(device_rootfs, args.deviceinfo["write_uboot_spl"].lstrip("/"))
+        filename = os.path.join(device_rootfs, spl_file.lstrip("/"))
         pmb.chroot.root(args, ["dd", "if=" + filename, "of=/dev/install", "bs=1024", "seek=8"])
 
 
