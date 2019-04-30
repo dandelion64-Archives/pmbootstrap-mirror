@@ -177,6 +177,7 @@ necessary_kconfig_options = {
         "PFT": False,
         "SYSVIPC": True,
         "VT": True,
+        "FHANDLE": True,
         "USE_VFB": False,
     },
     "armhf armv7 x86": {
