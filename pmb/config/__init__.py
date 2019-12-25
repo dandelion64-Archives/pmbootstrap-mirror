@@ -282,6 +282,7 @@ deviceinfo_attributes = [
     "sd_embed_firmware",
     "sd_embed_firmware_step_size",
     "partition_blacklist",
+    "root_filesystem",
 
     # weston
     "weston_pixman_type",
@@ -304,7 +305,7 @@ default_ip = "172.16.42.1"
 # Packages, that will be installed inside the native chroot to perform
 # the installation to the device.
 # util-linux: losetup, fallocate
-install_native_packages = ["cryptsetup", "util-linux", "e2fsprogs", "parted", "dosfstools"]
+install_native_packages = ["cryptsetup", "util-linux", "e2fsprogs", "f2fs-tools", "parted", "dosfstools"]
 install_device_packages = [
 
     # postmarketos

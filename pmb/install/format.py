@@ -58,6 +58,7 @@ def format_and_mount_root(args):
 
 
 def format_and_mount_pm_crypt(args):
+    filesystem = args.deviceinfo["root_filesystem"] or "ext4"
     # Block device
     if args.full_disk_encryption:
         device = "/dev/mapper/pm_crypt"
@@ -66,20 +67,26 @@ def format_and_mount_pm_crypt(args):
 
     # Format
     if not args.rsync:
-        logging.info("(native) format " + device)
-        # Some downstream kernels don't support metadata_csum (#1364).
-        # When changing the options of mkfs.ext4, also change them in the
-        # recovery zip code (see 'grep -r mkfs\.ext4')!
-        mkfs_ext4_args = ["mkfs.ext4", "-O", "^metadata_csum", "-F",
-                          "-q", "-L", "pmOS_root"]
+        logging.info("(native) format " + device + "as " + filesystem)
 
-        # When we don't know the file system size before hand like
-        # with non-block devices, we need to explicitely set a number of
-        # inodes. See #1717 and #1845 for details
-        if not args.sdcard:
-            mkfs_ext4_args = mkfs_ext4_args + ["-N", "100000"]
+        if filesystem == "ext4":
+            # Some downstream kernels don't support metadata_csum (#1364).
+            # When changing the options of mkfs.ext4, also change them in the
+            # recovery zip code (see 'grep -r mkfs\.ext4')!
+            mkfs_root_args = ["mkfs.ext4", "-O", "^metadata_csum", "-F",
+                              "-q", "-L", "pmOS_root"]
 
-        pmb.chroot.root(args, mkfs_ext4_args + [device])
+            # When we don't know the file system size before hand like
+            # with non-block devices, we need to explicitely set a number of
+            # inodes. See #1717 and #1845 for details
+            if not args.sdcard:
+                mkfs_root_args += ["-N", "100000"]
+        elif filesystem == "f2fs":
+            mkfs_root_args = ["mkfs.f2fs", "-l", "pmOS_root"]
+        else:
+            raise RuntimeError("Filesystem " + filesystem + " is not supported!")
+
+        pmb.chroot.root(args, mkfs_root_args + [device])
 
     # Mount
     mountpoint = "/mnt/install"
