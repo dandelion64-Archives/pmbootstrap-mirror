@@ -118,6 +118,7 @@ chroot_host_path = os.environ["PATH"] + ":/usr/sbin/"
 # $ARCH gets replaced with the chroot architecture (eg. x86_64, armhf)
 chroot_mount_bind = {
     "/proc": "/proc",
+    "/sys": "/sys",
     "$WORK/cache_apk_$ARCH": "/var/cache/apk",
     "$WORK/cache_ccache_$ARCH": "/mnt/pmbootstrap-ccache",
     "$WORK/cache_distfiles": "/var/cache/distfiles",
