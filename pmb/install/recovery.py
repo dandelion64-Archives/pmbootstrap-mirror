@@ -55,6 +55,7 @@ def create_zip(args, suffix):
         "INSTALL_PARTITION": args.recovery_install_partition,
         "CIPHER": args.cipher,
         "FDE": args.full_disk_encryption,
+        "ROOT_FS":args.deviceinfo["root_filesystem"],
     }
 
     # Write to a temporary file
