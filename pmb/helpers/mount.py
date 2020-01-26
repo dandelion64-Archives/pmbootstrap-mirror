@@ -66,10 +66,10 @@ def bind(args, source, destination, create_folders=True, umount=False):
         raise RuntimeError("Mount failed: " + source + " -> " + destination)
 
 
-def bind_blockdevice(args, source, destination):
+def bind_file(args, source, destination, create_folders=False):
     """
-    Mount a blockdevice with the --bind option, and create the destination
-    file, if necessary.
+    Mount a file with the --bind option, and create the destination file,
+    if necessary.
     """
     # Skip existing mountpoint
     if ismount(destination):
@@ -77,6 +77,11 @@ def bind_blockdevice(args, source, destination):
 
     # Create empty file
     if not os.path.exists(destination):
+        if create_folders:
+            dir = os.path.dirname(destination)
+            if not os.path.isdir(dir):
+                pmb.helpers.run.root(args, ["mkdir", "-p", dir])
+
         pmb.helpers.run.root(args, ["touch", destination])
 
     # Mount
