@@ -10,43 +10,18 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
     device = "-".join(pkgname.split("-")[1:])
     carch = pmb.parse.arch.alpine_to_kernel(deviceinfo["arch"])
 
-    makedepends = "perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev devicepkg-dev"
+    makedepends = "bash bc bison devicepkg-dev flex openssl-dev perl"
 
     package = """
-            # kernel.release
-            install -D "$builddir/include/config/kernel.release" \\
-                "$pkgdir/usr/share/kernel/$_flavor/kernel.release"
-
-            # zImage (find the right one)
-            cd "$builddir/arch/$_carch/boot"
-            _target="$pkgdir/boot/vmlinuz-$_flavor"
-            for _zimg in zImage-dtb Image.gz-dtb *zImage Image; do
-                [ -e "$_zimg" ] || continue
-                msg "zImage found: $_zimg"
-                install -Dm644 "$_zimg" "$_target"
-                break
-            done
-            if ! [ -e "$_target" ]; then
-                error "Could not find zImage in $PWD!"
-                return 1
-            fi"""
-
-    build = """
-            unset LDFLAGS
-            make ARCH="$_carch" CC="${CC:-gcc}" \\
-                KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS\""""
+            downstreamkernel_package "$builddir" "$pkgdir" "$_carch" "$_flavor\""""
 
     if deviceinfo["bootimg_qcdt"] == "true":
         makedepends += " dtbtool"
 
-        build += """\n
-            # Generate master DTB (deviceinfo_bootimg_qcdt)
-            dtbTool -s 2048 -p "scripts/dtc/" -o "arch/""" + carch + "/boot/dt.img\" \"arch/" + carch + "/boot/\""
-
         package += """\n
             # Master DTB (deviceinfo_bootimg_qcdt)
-            install -Dm644 "$builddir/arch/""" + carch + """/boot/dt.img" \\
-                "$pkgdir/boot/dt.img\""""
+            dtbTool -p scripts/dtc/ -o "arch/$_carch/boot"/dt.img "arch/$_carch/boot/"
+            install -Dm644 "arch/$_carch/boot"/dt.img "$pkgdir"/boot/dt.img"""
 
     content = """\
         # Contributor: Firstname Lastname <email> (CHANGEME!)
@@ -66,10 +41,6 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
         options="!strip !check !tracedeps"
         makedepends=\"""" + makedepends + """\"
 
-        # Compiler: latest GCC from Alpine
-        HOSTCC="${CC:-gcc}"
-        HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
-
         # Source
         _repository="(CHANGEME!)"
         _commit="ffffffffffffffffffffffffffffffffffffffff"
@@ -85,7 +56,10 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
             downstreamkernel_prepare "$srcdir" "$builddir" "$_config" "$_carch" "$HOSTCC"
         }
 
-        build() {""" + build + """
+        build() {
+            unset LDFLAGS
+            make ARCH="$_carch" CC="${CC:-gcc}" \\
+                KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
         }
 
         package() {""" + package + """
