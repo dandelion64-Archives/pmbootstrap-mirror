@@ -31,6 +31,9 @@ def sanity_check(info, path):
                            path + " (if you are sure that you need this, then"
                            " we can probably bring it back to fastboot, just"
                            " let us know in the postmarketOS issues!)")
+    if "date" in info:
+        raise RuntimeError("deviceinfo_date was replaced by deviceinfo_year. "
+                           "Set it to the release year of your device.")
 
     # "codename" is required
     codename = os.path.basename(os.path.dirname(path))
