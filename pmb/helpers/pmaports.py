@@ -13,15 +13,32 @@ import pmb.parse
 
 
 def _glob_apkbuilds(args, pkgname='*'):
-    return glob.glob(args.aports + "/**/" + pkgname + "/APKBUILD", recursive=True)
+    # Try to get a cached result first (we assume, that the aports don't change
+    # in one pmbootstrap call)
+    if pkgname in args.cache["pmb.helpers.pmaports._glob_apkbuilds"]:
+        return args.cache["pmb.helpers.pmaports._glob_apkbuilds"][pkgname]
+
+    ret = glob.glob(args.aports + "/**/" + pkgname + "/APKBUILD", recursive=True)
+
+    # Save result in cache
+    args.cache["pmb.helpers.pmaports._glob_apkbuilds"][pkgname] = ret
+    return ret
 
 
 def get_list(args, pkgname='*'):
     """ :returns: list of all pmaport pkgnames (["hello-world", ...]) """
+    # Try to get a cached result first (we assume, that the aports don't change
+    # in one pmbootstrap call)
+    if pkgname in args.cache["pmb.helpers.pmaports.get_list"]:
+        return args.cache["pmb.helpers.pmaports.get_list"][pkgname]
+
     ret = []
     for apkbuild in _glob_apkbuilds(args, pkgname):
         ret.append(os.path.basename(os.path.dirname(apkbuild)))
     ret.sort()
+
+    # Save result in cache
+    args.cache["pmb.helpers.pmaports.get_list"][pkgname] = ret
     return ret
 
 
@@ -35,11 +52,12 @@ def guess_main_dev(args, subpkgname):
     :returns: full path to the pmaport or None
     """
     pkgname = subpkgname[:-4]
-    paths = _glob_apkbuilds(args, pkgname)
-    if paths:
-        logging.debug(subpkgname + ": guessed to be a subpackage of " +
-                      pkgname + " (just removed '-dev')")
-        return os.path.dirname(paths[0])
+    if pkgname in get_list(args):
+        paths = _glob_apkbuilds(args, pkgname)
+        if paths:
+            logging.debug(subpkgname + ": guessed to be a subpackage of " +
+                          pkgname + " (just removed '-dev')")
+            return os.path.dirname(paths[0])
 
     logging.debug(subpkgname + ": guessed to be a subpackage of " + pkgname +
                   ", which we can't find in pmaports, so it's probably in"
@@ -77,11 +95,12 @@ def guess_main(args, subpkgname):
         pkgname = "-".join(words)
 
         # Look in pmaports
-        paths = _glob_apkbuilds(args, pkgname)
-        if paths:
-            logging.debug(subpkgname + ": guessed to be a subpackage of " +
-                          pkgname)
-            return os.path.dirname(paths[0])
+        if pkgname in get_list(args):
+            paths = _glob_apkbuilds(args, pkgname)
+            if paths:
+                logging.debug(subpkgname + ": guessed to be a subpackage of " +
+                              pkgname)
+                return os.path.dirname(paths[0])
 
 
 def find(args, package, must_exist=True):
@@ -103,13 +122,14 @@ def find(args, package, must_exist=True):
             raise RuntimeError("Invalid pkgname: " + package)
 
         # Search in packages
-        paths = _glob_apkbuilds(args, package)
-        if len(paths) > 1:
-            raise RuntimeError("Package " + package + " found in multiple"
-                               " aports subfolders. Please put it only in one"
-                               " folder.")
-        elif len(paths) == 1:
-            ret = os.path.dirname(paths[0])
+        if package in get_list(args):
+            paths = _glob_apkbuilds(args, package)
+            if len(paths) > 1:
+                raise RuntimeError("Package " + package + " found in multiple"
+                                   " aports subfolders. Please put it only in one"
+                                   " folder.")
+            elif len(paths) == 1:
+                ret = os.path.dirname(paths[0])
 
         # Search in subpackages and provides
         if not ret:
