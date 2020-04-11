@@ -214,8 +214,24 @@ def test_questions_keymaps(args, monkeypatch):
 
 
 def test_questions_ui(args, monkeypatch):
+    args.aports = pmb_test.const.testdata + "/init_questions_device/aports"
+
+    fake_answers(monkeypatch, ["none"])
+    assert pmb.config.init.ask_for_ui(args) == "none"
+
     fake_answers(monkeypatch, ["invalid_UI", "weston"])
     assert pmb.config.init.ask_for_ui(args) == "weston"
+
+
+def test_questions_ui_extras(args, monkeypatch):
+    args.aports = pmb_test.const.testdata + "/init_questions_device/aports"
+    assert not pmb.config.init.ask_for_ui_extras(args, "none")
+
+    fake_answers(monkeypatch, ["n"])
+    assert not pmb.config.init.ask_for_ui_extras(args, "weston")
+
+    fake_answers(monkeypatch, ["y"])
+    assert pmb.config.init.ask_for_ui_extras(args, "weston")
 
 
 def test_questions_work_path(args, monkeypatch, tmpdir):
