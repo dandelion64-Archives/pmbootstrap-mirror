@@ -182,10 +182,10 @@ def test_build_depends_binary_outdated(args, monkeypatch):
     def func_patch(args, package, *args2, **kwargs):
         print(f"func_patch: called for package: {package}")
         if package == "hello-world":
-            print(f"pretending that it does not exist")
+            print("pretending that it does not exist")
             return None
         if package == "binutils-aarch64":
-            print(f"pretending that it is outdated")
+            print("pretending that it is outdated")
             ret = func_orig(args, package, *args2, **kwargs)
             ret["version"] = "0-r0"
             return ret
@@ -385,8 +385,8 @@ def test_build_local_source_high_level(args, tmpdir):
     aports = tmpdir + "/aports"
     aport = aports + "/device/testing/device-" + args.device
     os.makedirs(aport)
-    shutil.copy(args.aports + "/device/testing/device-" + args.device + "/deviceinfo",
-                aport)
+    path_original = pmb.helpers.pmaports.find(args, f"device-{args.device}")
+    shutil.copy(f"{path_original}/deviceinfo", aport)
 
     # aports: Add modified hello-world aport (source="", uses $builddir)
     aport = aports + "/main/hello-world"
