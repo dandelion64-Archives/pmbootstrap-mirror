@@ -374,6 +374,18 @@ def sanity_check_sdcard(device):
             raise RuntimeError("{} is read-only, is the sdcard locked?".format(device))
 
 
+def sanity_check_ondev_version(args):
+    arch = args.deviceinfo["arch"]
+    package = pmb.helpers.package.get(args, "postmarketos-ondev", arch)
+    ver_pkg = package["version"].split("-r")[0]
+    ver_min = pmb.config.ondev_min_version
+    if pmb.parse.version.compare(ver_pkg, ver_min) == -1:
+        raise RuntimeError("This version of pmbootstrap requires"
+                           f" postmarketos-ondev version {ver_min} or"
+                           " higher. The postmarketos-ondev found in pmaports"
+                           f" / in the binary packages has version {ver_pkg}.")
+
+
 def install_system_image(args, size_reserve, suffix, root_label="pmOS_root",
                          step=3, steps=5, split=False, sdcard=None):
     """
@@ -530,14 +542,17 @@ def install_on_device_installer(args, step, steps):
     # properties (e.g. to display the version number), or transform the image
     # file into another format. This can all be done without pmbootstrap
     # changes in the postmarketos-ondev package.
-    logging.info(f"({suffix_installer}) ondev-prepare-image")
+    logging.info(f"({suffix_installer}) ondev-prepare")
     channel = pmb.config.pmaports.read_config(args)["channel"]
     channel_cfg = pmb.config.pmaports.read_config_channel(args)
-    pmb.chroot.root(args, ["ondev-prepare", channel,
-                           channel_cfg["description"],
-                           channel_cfg["branch_pmaports"],
-                           channel_cfg["branch_aports"],
-                           channel_cfg["mirrordir_alpine"]], suffix_installer)
+    env = {"ONDEV_CHANNEL": channel,
+           "ONDEV_CHANNEL_BRANCH_APORTS": channel_cfg["branch_aports"],
+           "ONDEV_CHANNEL_BRANCH_PMAPORTS": channel_cfg["branch_pmaports"],
+           "ONDEV_CHANNEL_DESCRIPTION": channel_cfg["description"],
+           "ONDEV_CHANNEL_MIRRORDIR_ALPINE": channel_cfg["mirrordir_alpine"],
+           "ONDEV_PMBOOTSTRAP_VERSION": pmb.config.version,
+           "ONDEV_UI": args.ui}
+    pmb.chroot.root(args, ["ondev-prepare"], suffix_installer, env=env)
 
     # Remove $DEVICE-boot.img (we will generate a new one if --split was
     # specified, otherwise the separate boot image is not needed)
@@ -555,6 +570,8 @@ def install(args):
     # Sanity checks
     if not args.android_recovery_zip and args.sdcard:
         sanity_check_sdcard(args.sdcard)
+    if args.on_device_installer:
+        sanity_check_ondev_version(args)
 
     # Number of steps for the different installation methods.
     if args.no_image:
