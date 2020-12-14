@@ -62,15 +62,20 @@ def get_outputdir(args, pkgname, apkbuild):
     ret = pmb.chroot.user(args, ["sh", "-c", cmd],
                           "native", "/home/pmos/build",
                           output_return=True).rstrip()
-    if os.path.exists(chroot + ret + "/.config"):
+
+    if (os.path.exists(f"{chroot}{ret}/.config") or
+            get_fragment_name(args, apkbuild['arch'][0], f"{chroot}{ret}")):
         return ret
     # Some Mediatek kernels use a 'kernel' subdirectory
-    if os.path.exists(chroot + ret + "/kernel/.config"):
+    if os.path.exists(f"{chroot}{ret}/kernel/.config"):
         return os.path.join(ret, "kernel")
 
     # Out-of-tree builds ($_outdir)
-    if os.path.exists(chroot + ret + "/" + apkbuild["_outdir"] + "/.config"):
-        return os.path.join(ret, apkbuild["_outdir"])
+    outdir = apkbuild['_outdir']
+    if (os.path.exists(f"{chroot}{ret}/{outdir}/.config") or
+            get_fragment_name(args, apkbuild['arch'][0],
+                              f"{chroot}{ret}/{outdir}")):
+        return os.path.join(ret, outdir)
 
     # Not found
     raise RuntimeError("Could not find the kernel config. Consider making a"
@@ -78,18 +83,26 @@ def get_outputdir(args, pkgname, apkbuild):
                        " template with: pmbootstrap aportgen " + pkgname)
 
 
+def get_fragment_name(args, arch, path):
+    if (os.path.exists(path)):
+        for f in os.listdir(path):
+            if f.endswith(f".{arch}") and not f.startswith("config"):
+                return f.split(".")[0]
+    return None
+
+
 def menuconfig(args, pkgname):
     # Pkgname: allow omitting "linux-" prefix
     if pkgname.startswith("linux-"):
         pkgname_ = pkgname.split("linux-")[1]
-        logging.info("PROTIP: You can simply do 'pmbootstrap kconfig edit " +
-                     pkgname_ + "'")
+        logging.info(f"PROTIP: You can simply do 'pmbootstrap kconfig edit "
+                     f"{pkgname_}'")
     else:
-        pkgname = "linux-" + pkgname
+        pkgname = f"linux-{pkgname}"
 
     # Read apkbuild
     aport = pmb.helpers.pmaports.find(args, pkgname)
-    apkbuild = pmb.parse.apkbuild(args, aport + "/APKBUILD")
+    apkbuild = pmb.parse.apkbuild(args, f"{aport}/APKBUILD")
     arch = args.arch or get_arch(args, apkbuild)
     suffix = pmb.build.autodetect.suffix(args, apkbuild, arch)
     cross = pmb.build.autodetect.crosscompile(args, apkbuild, arch, suffix)
@@ -111,6 +124,8 @@ def menuconfig(args, pkgname):
         depends += ["ncurses-dev"]
     else:
         depends += ["ncurses-dev"]
+
+    depends += ["diffconfig", "mergeconfig"]
     pmb.chroot.apk.install(args, depends)
 
     # Copy host's .xauthority into native
@@ -126,33 +141,53 @@ def menuconfig(args, pkgname):
                     "/home/pmos/build", output="interactive",
                     env={"CARCH": arch})
 
-    # Run make menuconfig
     outputdir = get_outputdir(args, pkgname, apkbuild)
-    logging.info("(native) make " + kopt)
+    fragment = get_fragment_name(args, arch,
+                                 f"{args.work}/chroot_native/{outputdir}")
+    config = f"{fragment}.{arch}" if fragment else ".config"
+
+    # Run make menuconfig
+    logging.info(f"(native) make {kopt}")
     env = {"ARCH": pmb.parse.arch.alpine_to_kernel(arch),
            "DISPLAY": os.environ.get("DISPLAY"),
            "XAUTHORITY": "/home/pmos/.Xauthority"}
     if cross:
         env["CROSS_COMPILE"] = f"{hostspec}-"
         env["CC"] = f"{hostspec}-gcc"
+
     pmb.chroot.user(args, ["make", kopt], "native",
                     outputdir, output="tui", env=env)
 
-    # Find the updated config
-    source = args.work + "/chroot_native" + outputdir + "/.config"
-    if not os.path.exists(source):
-        raise RuntimeError("No kernel config generated: " + source)
+    if fragment:
+        logging.info("(native) diffconfig")
+        cmd = f"diffconfig -m .config.old .config > {config}.temp"
+        pmb.chroot.user(args, ["sh", "-c", cmd], "native", outputdir)
+        logging.info("(native) mergeconfig")
+        pmb.chroot.user(args, ["mergeconfig", "-m", config,
+                               f"{config}.temp"],
+                        "native", outputdir,
+                        env={"KCONFIG_CONFIG": config})
+        pmb.chroot.user(args, ["chmod", "644", config], "native", outputdir)
 
-    # Update the aport (config and checksum)
+    # Update the aport (config or config diff and checksum)
     logging.info("Copy kernel config back to aport-folder")
-    config = "config-" + apkbuild["_flavor"] + "." + arch
-    target = aport + "/" + config
-    pmb.helpers.run.user(args, ["cp", source, target])
-    pmb.build.checksum.update(args, pkgname)
+    source = f"{args.work}/chroot_native{outputdir}/{config}"
+    if fragment:
+        target = f"{aport}/{config}"
+        pmb.helpers.run.user(args, ["cp", source, target])
+        config_path = f"{args.work}/chroot_native{outputdir}/.config"
+        pmb.parse.kconfig.check_file(args, config_path, details=True)
+    else:
+        # Find the updated config
+        if not os.path.exists(source):
+            raise RuntimeError(f"No kernel config generated: {source}")
+        target = f"{aport}/config-{apkbuild['_flavor']}.{arch}"
+        pmb.helpers.run.user(args, ["cp", source, target])
+        pmb.parse.kconfig.check(args, apkbuild["_flavor"],
+                                force_anbox_check=False,
+                                force_nftables_check=False,
+                                force_containers_check=False,
+                                force_zram_check=False,
+                                details=True)
 
-    # Check config
-    pmb.parse.kconfig.check(args, apkbuild["_flavor"], force_anbox_check=False,
-                            force_nftables_check=False,
-                            force_containers_check=False,
-                            force_zram_check=False,
-                            details=True)
+    pmb.build.checksum.update(args, pkgname)

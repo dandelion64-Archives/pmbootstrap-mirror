@@ -6,6 +6,8 @@ import re
 import os
 
 import pmb.build
+from pmb.build.menuconfig import get_outputdir, get_fragment_name
+import pmb.chroot
 import pmb.config
 import pmb.parse
 import pmb.helpers.pmaports
@@ -57,10 +59,10 @@ def check_option(component, details, config, config_path_pretty, option,
                 logging.warning(warning_no_details)
             return False
     else:
-        raise RuntimeError("kconfig check code can only handle True/False and"
-                           " arrays now, given value '" + str(option_value) +
-                           "' is not supported. If you need this, please open"
-                           " an issue.")
+        raise RuntimeError(f"kconfig check code can only handle True/False"
+                           f" and arrays now, given value '{option_value}'"
+                           f" is not supported. If you need this, please"
+                           f" open an issue.")
     return True
 
 
@@ -107,9 +109,9 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
 
         for archs, options in archs_options.items():
             if archs != "all":
-                # Split and check if the device's architecture architecture has
-                # special config options. If option does not contain the
-                # architecture of the device kernel, then just skip the option.
+                # Split and check if the device's architecture has special
+                # config options. If option does not contain the architecture
+                # of the device kernel, then just skip the option.
                 architectures = archs.split(" ")
                 if config_arch not in architectures:
                     continue
@@ -133,15 +135,15 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
     # Pkgname: allow omitting "linux-" prefix
     if pkgname.startswith("linux-"):
         flavor = pkgname.split("linux-")[1]
-        logging.info("PROTIP: You can simply do 'pmbootstrap kconfig check " +
-                     flavor + "'")
+        logging.info(f"PROTIP: You can simply do 'pmbootstrap kconfig check "
+                     f"{flavor}'")
     else:
         flavor = pkgname
 
     # Read all kernel configs in the aport
     ret = True
-    aport = pmb.helpers.pmaports.find(args, "linux-" + flavor)
-    apkbuild = pmb.parse.apkbuild(args, aport + "/APKBUILD")
+    aport = pmb.helpers.pmaports.find(args, f"linux-{flavor}")
+    apkbuild = pmb.parse.apkbuild(args, f"{aport}/APKBUILD")
     pkgver = apkbuild["pkgver"]
     check_anbox = force_anbox_check or (
         "pmb:kconfigcheck-anbox" in apkbuild["options"])
@@ -151,12 +153,45 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
         "pmb:kconfigcheck-containers" in apkbuild["options"])
     check_zram = force_zram_check or (
         "pmb:kconfigcheck-zram" in apkbuild["options"])
-    for config_path in glob.glob(aport + "/config-*"):
+
+    fragment = None
+    paths = None
+    if not apkbuild["_config"]:
+        depends = apkbuild["makedepends"]
+        depends += ["diffconfig", "mergeconfig"]
+        paths = []
+        # setup chroot
+        pmb.build.init(args)
+        pmb.chroot.apk.install(args, depends)
+        pmb.build.copy_to_buildpath(args, f"linux-{flavor}")
+        logging.info("(native) extract kernel source")
+        pmb.chroot.user(args, ["abuild", "unpack"], "native",
+                        "/home/pmos/build")
+        for arch in apkbuild["arch"]:
+            logging.info("(native) apply patches")
+            pmb.chroot.user(args, ["abuild", "prepare"], "native",
+                            "/home/pmos/build", output="interactive",
+                            env={"CARCH": arch})
+            outputdir = get_outputdir(args, f"linux-{flavor}", apkbuild)
+            fragment = get_fragment_name(args, arch, f"{args.work}/"
+                                                     "chroot_native/"
+                                                     f"{outputdir}")
+            diff_name = f"{fragment}.{arch}"
+            pmb.chroot.user(args, ["cp", ".config", f"/tmp/{diff_name}"],
+                            "native", outputdir)
+            paths += [f"{args.work}/chroot_native/tmp/{diff_name}"]
+    else:
+        paths = glob.glob(f"{aport}/config-*")
+    for config_path in paths:
         # The architecture of the config is in the name, so it just needs to be
         # extracted
-        config_arch = os.path.basename(config_path).split(".")[1]
-        config_path_pretty = f"linux-{flavor}/{os.path.basename(config_path)}"
-        ret &= check_config(config_path, config_path_pretty, config_arch,
+        name, arch = os.path.basename(config_path).split(".")
+        if fragment:
+            config_path_pretty = f"{aport}/{name}.{arch}"
+        else:
+            config_path_pretty = f"linux-{flavor}/" \
+                                 f"{name}.{arch}"
+        ret &= check_config(config_path, config_path_pretty, arch,
                             pkgver,
                             anbox=check_anbox,
                             nftables=check_nftables,

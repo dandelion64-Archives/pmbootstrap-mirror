@@ -509,6 +509,7 @@ apkbuild_attributes = {
     "_kernver": {},
     "_outdir": {},
     "_config": {},
+    "_kconfig_name": {},
 
     # mesa
     "_llvmver": {},
