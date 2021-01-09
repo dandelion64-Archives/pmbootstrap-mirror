@@ -50,13 +50,18 @@ def package_provider(args, pkgname, pkgnames_install, suffix="native"):
     if len(providers) == 1:
         return list(providers.values())[0]
 
-    # 2. Provider with the same package name
+    # 2. Pick the provider(s) whose origin is being installed
+    providers = pmb.parse.apkindex.provider_origin(providers, pkgname, pkgnames_install)
+    if len(providers) == 1:
+        return list(providers.values())[0]
+
+    # 3. Provider with the same package name
     if pkgname in providers:
         logging.verbose(pkgname + ": choosing package of the same name as"
                         " provider")
         return providers[pkgname]
 
-    # 3. Pick a package that will be installed anyway
+    # 4. Pick a package that will be installed anyway
     for provider_pkgname, provider in providers.items():
         if provider_pkgname in pkgnames_install:
             logging.verbose(pkgname + ": choosing provider '" +
@@ -64,7 +69,7 @@ def package_provider(args, pkgname, pkgnames_install, suffix="native"):
                             " installed anyway")
             return provider
 
-    # 4. Pick a package that is already installed
+    # 5. Pick a package that is already installed
     installed = pmb.chroot.apk.installed(args, suffix)
     for provider_pkgname, provider in providers.items():
         if provider_pkgname in installed:
@@ -73,12 +78,12 @@ def package_provider(args, pkgname, pkgnames_install, suffix="native"):
                             " the '" + suffix + "' chroot already")
             return provider
 
-    # 5. Pick the provider(s) with the highest priority
+    # 6. Pick the provider(s) with the highest priority
     providers = pmb.parse.apkindex.provider_highest_priority(providers, pkgname)
     if len(providers) == 1:
         return list(providers.values())[0]
 
-    # 6. Pick the shortest provider. (Note: Normally apk would fail here!)
+    # 7. Pick the shortest provider. (Note: Normally apk would fail here!)
     return pmb.parse.apkindex.provider_shortest(providers, pkgname)
 
 

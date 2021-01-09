@@ -348,6 +348,31 @@ def provider_highest_priority(providers, pkgname):
     return providers
 
 
+def provider_origin(providers, pkgname, pkgnames_install):
+    """
+    Get the provider(s) with whose origin is set to be installed
+    and log a message. In most cases this should be sufficient, e.g
+   'mesa-pvr-egl' instead of 'mesa-egl' when mesa-pvr is being installed
+
+    :param providers: returned dict from providers(), must not be empty
+    :param pkgname: the package name we are interested in (for the log message)
+    :param pkgnames_install: the packages that are due to be installed
+    """
+    origin_providers = collections.OrderedDict()
+    for provider_name, provider in providers.items():
+        origin = provider.get("origin", "")
+        if origin in pkgnames_install:
+            origin_providers[provider_name] = provider
+
+    if origin_providers:
+        logging.debug(f"{pkgname}: picked provider(s) with origin priority: " +
+                      ", ".join(origin_providers.keys()))
+        return origin_providers
+
+    # None of the providers seems to have a provider_priority defined
+    return providers
+
+
 def provider_shortest(providers, pkgname):
     """
     Get the provider with the shortest pkgname and log a message. In most cases
