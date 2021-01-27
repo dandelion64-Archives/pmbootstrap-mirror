@@ -31,6 +31,18 @@ def system_image(args):
     return path
 
 
+def create_second_storage(args):
+    """
+    Generate a second storage image if it does not exist.
+    :returns: path to the image or None
+    """
+    path = f"{args.work}/chroot_native/home/pmos/rootfs/{args.device}-2nd.img"
+    pmb.helpers.run.root(args, ["touch", path])
+    pmb.helpers.run.root(args, ["chmod", "a+w", path])
+    resize_image(args, args.second_storage, path)
+    return path
+
+
 def which_qemu(args, arch):
     """
     Finds the qemu executable or raises an exception otherwise
@@ -67,7 +79,7 @@ def create_gdk_loader_cache(args):
     return rootfs_native + custom_cache_path
 
 
-def command_qemu(args, arch, img_path):
+def command_qemu(args, arch, img_path, img_path_2nd=None):
     """
     Generate the full qemu command with arguments to run postmarketOS
     """
@@ -137,7 +149,11 @@ def command_qemu(args, arch, img_path):
     command += ["-m", str(args.memory)]
 
     command += ["-serial", "stdio"]
+
     command += ["-drive", "file=" + img_path + ",format=raw,if=virtio"]
+    if img_path_2nd:
+        command += ["-drive", "file=" + img_path_2nd + ",format=raw,if=virtio"]
+
     if args.qemu_tablet:
         command += ["-device", "virtio-tablet-pci"]
     else:
@@ -185,11 +201,12 @@ def command_qemu(args, arch, img_path):
 
 def resize_image(args, img_size_new, img_path):
     """
-    Truncates the rootfs to a specific size. The value must be larger than the
-    current image size, and it must be specified in MiB or GiB units (powers of 1024).
+    Truncates an image to a specific size. The value must be larger than the
+    current image size, and it must be specified in MiB or GiB units (powers of
+    1024).
 
     :param img_size_new: new image size in M or G
-    :param img_path: the path to the rootfs
+    :param img_path: the path to the image
     """
     # Current image size in bytes
     img_size = os.path.getsize(img_path)
@@ -197,7 +214,8 @@ def resize_image(args, img_size_new, img_path):
     # Make sure we have at least 1 integer followed by either M or G
     pattern = re.compile("^[0-9]+[M|G]$")
     if not pattern.match(img_size_new):
-        raise RuntimeError("You must specify the rootfs size in [M]iB or [G]iB, e.g. 2048M or 2G")
+        raise RuntimeError("IMAGE_SIZE must be in [M]iB or [G]iB, e.g. 2048M"
+                           " or 2G")
 
     # Remove M or G and convert to bytes
     img_size_new_bytes = int(img_size_new[:-1]) * 1024 * 1024
@@ -207,7 +225,7 @@ def resize_image(args, img_size_new, img_path):
         img_size_new_bytes = img_size_new_bytes * 1024
 
     if (img_size_new_bytes >= img_size):
-        logging.info("Setting the rootfs size to " + img_size_new)
+        logging.info(f"Resize image to {img_size_new}: {img_path}")
         pmb.helpers.run.root(args, ["truncate", "-s", img_size_new, img_path])
     else:
         # Convert to human-readable format
@@ -217,7 +235,7 @@ def resize_image(args, img_size_new, img_path):
         # this example, they would need to use a size greater then 1280M instead.
         img_size_str = str(round(img_size / 1024 / 1024)) + "M"
 
-        raise RuntimeError("The rootfs size must be " + img_size_str + " or greater")
+        raise RuntimeError(f"IMAGE_SIZE must be {img_size_str} or greater")
 
 
 def sigterm_handler(number, frame):
@@ -269,11 +287,15 @@ def run(args):
     arch = pmb.parse.arch.alpine_to_qemu(args.deviceinfo["arch"])
 
     img_path = system_image(args)
+    img_path_2nd = None
+    if args.second_storage:
+        img_path_2nd = create_second_storage(args)
+
     if not args.host_qemu:
         install_depends(args, arch)
     logging.info("Running postmarketOS in QEMU VM (" + arch + ")")
 
-    qemu, env = command_qemu(args, arch, img_path)
+    qemu, env = command_qemu(args, arch, img_path, img_path_2nd)
 
     # Workaround: QEMU runs as local user and needs write permissions in the
     # rootfs, which is owned by root

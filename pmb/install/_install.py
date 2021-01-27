@@ -432,10 +432,14 @@ def sanity_check_sdcard_size(args):
             raise RuntimeError("Aborted.")
 
 
-def sanity_check_ondev_version(args):
+def get_ondev_pkgver(args):
     arch = args.deviceinfo["arch"]
     package = pmb.helpers.package.get(args, "postmarketos-ondev", arch)
-    ver_pkg = package["version"].split("-r")[0]
+    return package["version"].split("-r")[0]
+
+
+def sanity_check_ondev_version(args):
+    ver_pkg = get_ondev_pkgver(args)
     ver_min = pmb.config.ondev_min_version
     if pmb.parse.version.compare(ver_pkg, ver_min) == -1:
         raise RuntimeError("This version of pmbootstrap requires"
@@ -445,13 +449,15 @@ def sanity_check_ondev_version(args):
 
 
 def install_system_image(args, size_reserve, suffix, step, steps,
-                         root_label="pmOS_root", split=False, sdcard=None):
+                         boot_label="pmOS_boot", root_label="pmOS_root",
+                         split=False, sdcard=None):
     """
     :param size_reserve: empty partition between root and boot in MiB (pma#463)
     :param suffix: the chroot suffix, where the rootfs that will be installed
                    on the device has been created (e.g. "rootfs_qemu-amd64")
     :param step: next installation step
     :param steps: total installation steps
+    :param boot_label: label of the boot partition (e.g. "pmOS_boot")
     :param root_label: label of the root partition (e.g. "pmOS_root")
     :param split: create separate images for boot and root partitions
     :param sdcard: path to sdcard device (e.g. /dev/mmcblk0) or None
@@ -469,7 +475,7 @@ def install_system_image(args, size_reserve, suffix, step, steps,
         root_id = 3 if size_reserve else 2
         pmb.install.partitions_mount(args, root_id, sdcard)
 
-    pmb.install.format(args, size_reserve, root_label, sdcard)
+    pmb.install.format(args, size_reserve, boot_label, root_label, sdcard)
 
     # Just copy all the files
     logging.info(f"*** ({step + 1}/{steps}) FILL INSTALL BLOCKDEVICE ***")
@@ -639,8 +645,11 @@ def install_on_device_installer(args, step, steps):
 
     # Generate installer image
     size_reserve = round(os.path.getsize(img_path_dest) / 1024 / 1024) + 200
+    boot_label = "pmOS_inst_boot"
+    if pmb.parse.version.compare(get_ondev_pkgver(args), "0.4.0") == -1:
+        boot_label = "pmOS_boot"
     install_system_image(args, size_reserve, suffix_installer, step, steps,
-                         "pmOS_install", args.split, args.sdcard)
+                         boot_label, "pmOS_install", args.split, args.sdcard)
 
 
 def create_device_rootfs(args, step, steps):
