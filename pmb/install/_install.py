@@ -16,6 +16,7 @@ import pmb.helpers.devices
 import pmb.helpers.run
 import pmb.install.blockdevice
 import pmb.install.recovery
+import pmb.install.ui
 import pmb.install
 
 
@@ -98,36 +99,6 @@ def get_kernel_package(args, device):
 
     # Selected kernel subpackage
     return ["device-" + device + "-kernel-" + args.kernel]
-
-
-def get_recommends_packages(args):
-    """ Get all packages listed in _pmb_recommends of the UI and UI-extras
-        package, unless running with pmbootstrap install --no-recommends.
-
-        :returns: list of pkgnames, e.g. ["chatty", "gnome-contacts"] """
-    ret = []
-    if not args.install_recommends or args.ui == "none":
-        return ret
-
-    # UI package
-    meta = f"postmarketos-ui-{args.ui}"
-    apkbuild = pmb.helpers.pmaports.get(args, meta)
-    recommends = apkbuild["_pmb_recommends"]
-    if recommends:
-        logging.debug(f"{meta}: install _pmb_recommends:"
-                      f" {', '.join(recommends)}")
-        ret += recommends
-
-    # UI-extras subpackage
-    meta_extras = f"{meta}-extras"
-    if args.ui_extras and meta_extras in apkbuild["subpackages"]:
-        recommends = apkbuild["subpackages"][meta_extras]["_pmb_recommends"]
-        if recommends:
-            logging.debug(f"{meta_extras}: install _pmb_recommends:"
-                          f" {', '.join(recommends)}")
-            ret += recommends
-
-    return ret
 
 
 def copy_files_from_chroot(args, suffix):
@@ -224,10 +195,11 @@ def set_user(args):
     if not pmb.chroot.user_exists(args, args.user, suffix):
         pmb.chroot.root(args, ["adduser", "-D", "-u", "10000", args.user],
                         suffix)
-        for group in pmb.config.install_user_groups:
-            pmb.chroot.root(args, ["addgroup", "-S", group], suffix,
-                            check=False)
-            pmb.chroot.root(args, ["addgroup", args.user, group], suffix)
+    groups = pmb.install.ui.get_groups(args) + pmb.config.install_user_groups
+    for group in groups:
+        pmb.chroot.root(args, ["addgroup", "-S", group], suffix,
+                        check=False)
+        pmb.chroot.root(args, ["addgroup", args.user, group], suffix)
 
 
 def setup_login(args):
@@ -687,7 +659,7 @@ def create_device_rootfs(args, step, steps):
                         ["device-" + args.device] +
                         get_kernel_package(args, args.device) +
                         get_nonfree_packages(args, args.device) +
-                        get_recommends_packages(args))
+                        pmb.install.ui.get_recommends(args))
     if not args.install_base:
         install_packages = [p for p in install_packages if p != "postmarketos-base"]
     if args.ui.lower() != "none":

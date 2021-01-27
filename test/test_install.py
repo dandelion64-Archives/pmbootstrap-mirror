@@ -46,9 +46,9 @@ def test_get_nonfree_packages(args):
     assert func(args, device) == []
 
 
-def test_get_recommends_packages(args):
+def test_get_recommends(args):
     args.aports = pmb_test.const.testdata + "/pmb_recommends"
-    func = pmb.install._install.get_recommends_packages
+    func = pmb.install.ui.get_recommends
 
     # UI: none
     args.install_recommends = True
@@ -75,6 +75,31 @@ def test_get_recommends_packages(args):
 
     # UI: invalid
     args.install_recommends = True
+    args.ui = "invalid"
+    with pytest.raises(RuntimeError) as e:
+        func(args)
+    assert str(e.value).startswith("Could not find aport for package")
+
+
+def test_get_groups(args):
+    args.aports = f"{pmb_test.const.testdata}/pmb_groups"
+    func = pmb.install.ui.get_groups
+
+    # UI: none:
+    args.ui = "none"
+    assert func(args) == []
+
+    # UI: test, without -extras
+    args.ui = "test"
+    args.ui_extras = False
+    assert func(args) == ["feedbackd"]
+
+    # UI: test, with -extras
+    args.ui = "test"
+    args.ui_extras = True
+    assert func(args) == ["feedbackd", "extra"]
+
+    # UI: invalid
     args.ui = "invalid"
     with pytest.raises(RuntimeError) as e:
         func(args)
