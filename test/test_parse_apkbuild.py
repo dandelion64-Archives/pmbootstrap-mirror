@@ -135,3 +135,19 @@ def test_variable_replacements(args):
     test_subpkg = apkbuild["subpackages"]["test"]
     assert test_subpkg["pkgdesc"] == ("this should not affect variable "
                                       "replacement")
+
+
+def test_parse_maintainers(args):
+    path = pmb_test.const.testdata + "/apkbuild/APKBUILD.lint"
+    maintainers = [
+        "Oliver Smith <ollieparanoid@postmarketos.org>",
+        "Hello World <hello@world>"
+    ]
+
+    assert pmb.parse._apkbuild.maintainers(path) == maintainers
+
+
+def test_parse_unmaintained(args):
+    path = (f"{pmb_test.const.testdata}/apkbuild"
+            "/APKBUILD.missing-pkgdesc-in-subpackage")
+    assert pmb.parse._apkbuild.unmaintained(path) == "This is broken!"
