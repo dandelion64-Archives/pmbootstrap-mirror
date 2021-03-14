@@ -99,13 +99,12 @@ def menuconfig(args, pkgname):
     kopt = "menuconfig"
     copy_xauth = False
     if args.xconfig:
-        depends += ["qt-dev", "font-noto"]
+        depends += ["qt5-qtbase-dev", "font-noto"]
         kopt = "xconfig"
         copy_xauth = True
-    elif args.gconfig:
-        depends += ["gtk+2.0-dev", "glib-dev", "libglade-dev", "font-noto"]
-        kopt = "gconfig"
-        copy_xauth = True
+    elif args.nconfig:
+        kopt = "nconfig"
+        depends += ["ncurses-dev"]
     else:
         depends += ["ncurses-dev"]
     pmb.chroot.apk.install(args, depends)
