@@ -32,7 +32,7 @@ def has_mtk_header(path, supported_label):
         return True
 
 
-def bootimg(args, path):
+def bootimg(args, path, pagesize=None):
     if not os.path.exists(path):
         raise RuntimeError("Could not find file '" + path + "'")
 
@@ -69,8 +69,10 @@ def bootimg(args, path):
                                    file_output + ")")
 
     # Extract all the files
-    pmb.chroot.user(args, ["unpackbootimg", "-i", "boot.img"],
-                    working_dir=temp_path)
+    cmd = ["unpackbootimg", "-i", "boot.img"]
+    if pagesize:
+        cmd += ["-p", "0x%x" % int(pagesize)]
+    pmb.chroot.user(args, cmd, working_dir=temp_path)
 
     output = {}
     # Get base, offsets, pagesize, cmdline and qcdt info
@@ -88,8 +90,11 @@ def bootimg(args, path):
     with open(bootimg_path + "-tags_offset", 'r') as f:
         output["tags_offset"] = ("0x%08x"
                                  % int(f.read().replace('\n', ''), 16))
-    with open(bootimg_path + "-pagesize", 'r') as f:
-        output["pagesize"] = f.read().replace('\n', '')
+    if not pagesize:
+        with open(bootimg_path + "-pagesize", 'r') as f:
+            output["pagesize"] = f.read().replace('\n', '')
+    else:
+        output["pagesize"] = pagesize
     with open(bootimg_path + "-cmdline", 'r') as f:
         output["cmdline"] = f.read().replace('\n', '')
     output["qcdt"] = ("true" if os.path.isfile(f"{bootimg_path}-dt") and
