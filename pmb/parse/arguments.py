@@ -777,6 +777,7 @@ def arguments():
     bootimg_analyze.add_argument("--force", "-f", action="store_true",
                                  help="force even if the file seems to be"
                                       " invalid")
+    bootimg_analyze.add_argument("--pagesize", "-p", help="page size")
 
     # Action: pull
     sub.add_parser("pull", help="update all git repositories that pmbootstrap"

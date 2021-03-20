@@ -530,7 +530,7 @@ def zap(args):
 
 
 def bootimg_analyze(args):
-    bootimg = pmb.parse.bootimg(args, args.path)
+    bootimg = pmb.parse.bootimg(args, args.path, args.pagesize)
     tmp_output = "Put these variables in the deviceinfo file of your device:\n"
     for line in pmb.aportgen.device.generate_deviceinfo_fastboot_content(args, bootimg).split("\n"):
         tmp_output += "\n" + line.lstrip()
