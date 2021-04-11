@@ -5,6 +5,14 @@ import logging
 import pmb.chroot
 
 
+def install_fsprogs(args, filesystem):
+    """ Install the package required to format a specific filesystem. """
+    fsprogs = pmb.config.filesystems.get(filesystem)
+    if not fsprogs:
+        raise RuntimeError(f"Unsupported filesystem: {filesystem}")
+    pmb.chroot.apk.install(args, [fsprogs])
+
+
 def format_and_mount_boot(args, boot_label):
     """
     :param boot_label: label of the root partition (e.g. "pmOS_boot")
@@ -15,6 +23,7 @@ def format_and_mount_boot(args, boot_label):
     mountpoint = "/mnt/install/boot"
     device = "/dev/installp1"
     filesystem = args.deviceinfo["boot_filesystem"] or "ext2"
+    install_fsprogs(args, filesystem)
     logging.info(f"(native) format {device} (boot, {filesystem}), mount to"
                  " mountpoint")
     if filesystem == "fat16":
@@ -58,6 +67,22 @@ def format_luks_root(args, device):
         raise RuntimeError("Failed to open cryptdevice!")
 
 
+def get_root_filesystem(args):
+    ret = args.filesystem or args.deviceinfo["root_filesystem"] or "ext4"
+    pmaports_cfg = pmb.config.pmaports.read_config(args)
+
+    supported = pmaports_cfg.get("supported_root_filesystems", "ext4")
+    supported_list = supported.split(",")
+
+    if ret not in supported_list:
+        raise ValueError(f"Root filesystem {ret} is not supported by your"
+                         " currently checked out pmaports branch. Update your"
+                         " branch ('pmbootstrap pull'), change it"
+                         " ('pmbootstrap init'), or select one of these"
+                         f" filesystems: {', '.join(supported_list)}")
+    return ret
+
+
 def format_and_mount_root(args, device, root_label, sdcard):
     """
     :param device: root partition on install block device (e.g. /dev/installp2)
@@ -66,20 +91,27 @@ def format_and_mount_root(args, device, root_label, sdcard):
     """
     # Format
     if not args.rsync:
-        logging.info("(native) format " + device)
-        # Some downstream kernels don't support metadata_csum (#1364).
-        # When changing the options of mkfs.ext4, also change them in the
-        # recovery zip code (see 'grep -r mkfs\.ext4')!
-        mkfs_ext4_args = ["mkfs.ext4", "-O", "^metadata_csum", "-F",
-                          "-q", "-L", root_label]
+        filesystem = get_root_filesystem(args)
 
-        # When we don't know the file system size before hand like
-        # with non-block devices, we need to explicitely set a number of
-        # inodes. See #1717 and #1845 for details
-        if not sdcard:
-            mkfs_ext4_args = mkfs_ext4_args + ["-N", "100000"]
+        if filesystem == "ext4":
+            # Some downstream kernels don't support metadata_csum (#1364).
+            # When changing the options of mkfs.ext4, also change them in the
+            # recovery zip code (see 'grep -r mkfs\.ext4')!
+            mkfs_root_args = ["mkfs.ext4", "-O", "^metadata_csum", "-F",
+                              "-q", "-L", root_label]
+            # When we don't know the file system size before hand like
+            # with non-block devices, we need to explicitely set a number of
+            # inodes. See #1717 and #1845 for details
+            if not sdcard:
+                mkfs_root_args = mkfs_root_args + ["-N", "100000"]
+        elif filesystem == "f2fs":
+            mkfs_root_args = ["mkfs.f2fs", "-f", "-l", root_label]
+        else:
+            raise RuntimeError(f"Don't know how to format {filesystem}!")
 
-        pmb.chroot.root(args, mkfs_ext4_args + [device])
+        install_fsprogs(args, filesystem)
+        logging.info(f"(native) format {device} (root, {filesystem})")
+        pmb.chroot.root(args, mkfs_root_args + [device])
 
     # Mount
     mountpoint = "/mnt/install"
