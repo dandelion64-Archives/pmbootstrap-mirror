@@ -96,6 +96,19 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
     # Loop through necessary config options, and print a warning,
     # if any is missing
     ret = True
+    options = get_required_options(options, pkgver)
+    logging.info(options)
+    for option, option_value in options.items():
+        if not check_option(component, details, config,
+                            config_path_pretty, option, option_value):
+            ret = False
+            if not details:
+                break  # do not give too much error messages
+
+    return ret
+
+
+def get_required_options(options, pkgver, config_arch):
     for rules, archs_options in options.items():
         # Skip options irrelevant for the current kernel's version
         # Example rules: ">=4.0 <5.0"
@@ -116,13 +129,7 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
                 if config_arch not in architectures:
                     continue
 
-            for option, option_value in options.items():
-                if not check_option(component, details, config,
-                                    config_path_pretty, option, option_value):
-                    ret = False
-                    if not details:
-                        break  # do not give too much error messages
-    return ret
+            return options
 
 
 def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
@@ -179,6 +186,8 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
             diff_name = f"{fragment}.{arch}"
             pmb.chroot.user(args, ["cp", ".config", f"/tmp/{diff_name}"],
                             "native", outputdir)
+            pmb.chroot.user(args, ["abuild", "clean"], "native",
+                            "/home/pmos/build")
             paths += [f"{args.work}/chroot_native/tmp/{diff_name}"]
     else:
         paths = glob.glob(f"{aport}/config-*")
