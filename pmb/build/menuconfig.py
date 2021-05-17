@@ -6,6 +6,7 @@ import logging
 import pmb.build
 import pmb.build.autodetect
 import pmb.build.checksum
+import pmb.build.other
 import pmb.chroot
 import pmb.chroot.apk
 import pmb.chroot.other
@@ -37,58 +38,6 @@ def get_arch(args, apkbuild):
                            " '--arch' to specify the desired architecture.")
 
     return apkbuild["arch"][0]
-
-
-def get_outputdir(args, pkgname, apkbuild):
-    """
-    Get the folder for the kernel compilation output.
-    For most APKBUILDs, this is $builddir. But some older ones still use
-    $srcdir/build (see the discussion in #1551).
-    """
-    # Old style ($srcdir/build)
-    ret = "/home/pmos/build/src/build"
-    chroot = args.work + "/chroot_native"
-    if os.path.exists(chroot + ret + "/.config"):
-        logging.warning("*****")
-        logging.warning("NOTE: The code in this linux APKBUILD is pretty old."
-                        " Consider making a backup and migrating to a modern"
-                        " version with: pmbootstrap aportgen " + pkgname)
-        logging.warning("*****")
-
-        return ret
-
-    # New style ($builddir)
-    cmd = "srcdir=/home/pmos/build/src source APKBUILD; echo $builddir"
-    ret = pmb.chroot.user(args, ["sh", "-c", cmd],
-                          "native", "/home/pmos/build",
-                          output_return=True).rstrip()
-
-    if (os.path.exists(f"{chroot}{ret}/.config") or
-            get_fragment_name(args, apkbuild['arch'][0], f"{chroot}{ret}")):
-        return ret
-    # Some Mediatek kernels use a 'kernel' subdirectory
-    if os.path.exists(f"{chroot}{ret}/kernel/.config"):
-        return os.path.join(ret, "kernel")
-
-    # Out-of-tree builds ($_outdir)
-    outdir = apkbuild['_outdir']
-    if (os.path.exists(f"{chroot}{ret}/{outdir}/.config") or
-            get_fragment_name(args, apkbuild['arch'][0],
-                              f"{chroot}{ret}/{outdir}")):
-        return os.path.join(ret, outdir)
-
-    # Not found
-    raise RuntimeError("Could not find the kernel config. Consider making a"
-                       " backup of your APKBUILD and recreating it from the"
-                       " template with: pmbootstrap aportgen " + pkgname)
-
-
-def get_fragment_name(args, arch, path):
-    if (os.path.exists(path)):
-        for f in os.listdir(path):
-            if f.endswith(f".{arch}") and not f.startswith("config"):
-                return f.split(".")[0]
-    return None
 
 
 def menuconfig(args, pkgname):
@@ -137,14 +86,22 @@ def menuconfig(args, pkgname):
     logging.info("(native) extract kernel source")
     pmb.chroot.user(args, ["abuild", "unpack"], "native", "/home/pmos/build")
     logging.info("(native) apply patches")
+    fragments = "pmb:kconfig-fragments" in apkbuild["options"]
+    if fragments:
+        pmb.build.other.create_pmos_config(args, apkbuild, arch)
     pmb.chroot.user(args, ["abuild", "prepare"], "native",
                     "/home/pmos/build", output="interactive",
                     env={"CARCH": arch})
 
-    outputdir = get_outputdir(args, pkgname, apkbuild)
-    fragment = get_fragment_name(args, arch,
-                                 f"{args.work}/chroot_native/{outputdir}")
-    config = f"{fragment}.{arch}" if fragment else ".config"
+    outputdir = pmb.build.other.get_outputdir(args, pkgname, apkbuild)
+    config = None
+    if fragments:
+        fragment_name = pmb.build.other \
+            .get_fragment_name(args, arch,
+                               f"{args.work}/chroot_native/{outputdir}")
+        config = f"{fragment_name}.{arch}"
+    else:
+        config = ".config"
 
     # Run make menuconfig
     logging.info(f"(native) make {kopt}")
@@ -158,7 +115,7 @@ def menuconfig(args, pkgname):
     pmb.chroot.user(args, ["make", kopt], "native",
                     outputdir, output="tui", env=env)
 
-    if fragment:
+    if fragments:
         logging.info("(native) diffconfig")
         cmd = f"diffconfig -m .config.old .config > {config}.temp"
         pmb.chroot.user(args, ["sh", "-c", cmd], "native", outputdir)
@@ -172,7 +129,7 @@ def menuconfig(args, pkgname):
     # Update the aport (config or config diff and checksum)
     logging.info("Copy kernel config back to aport-folder")
     source = f"{args.work}/chroot_native{outputdir}/{config}"
-    if fragment:
+    if fragments:
         target = f"{aport}/{config}"
         pmb.helpers.run.user(args, ["cp", source, target])
         config_path = f"{args.work}/chroot_native{outputdir}/.config"

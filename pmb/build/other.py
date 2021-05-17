@@ -168,3 +168,101 @@ def configure_ccache(args, suffix="native", verify=False):
     pmb.chroot.user(args, ["ccache", "--max-size", args.ccache_size],
                     suffix)
     configure_ccache(args, suffix, True)
+
+
+def create_pmos_config(args, apkbuild, arch):
+    requirements = {}
+    options = apkbuild["options"]
+    pkgver = apkbuild["pkgver"]
+    config_path = f"{args.work}/pmos.config"
+    logging.info(f"Creating pmOS config for pkgver {pkgver}, arch {arch}")
+    if "!pmb:kconfigcheck" not in options:
+        v = pmb.parse.kconfig \
+            .get_required_options(pmb.config.necessary_kconfig_options,
+                                  pkgver, arch)
+        requirements.update(v)
+        kconfig_options = {
+            "pmb:kconfigcheck-anbox":
+                pmb.config.necessary_kconfig_options_anbox,
+            "pmb:kconfigcheck-nftables":
+                pmb.config.necessary_kconfig_options_nftables,
+            "pmb:kconfigcheck-containers":
+                pmb.config.necessary_kconfig_options_containers,
+            "pmb:kconfigcheck-zram":
+                pmb.config.necessary_kconfig_options_zram
+        }
+
+        for option in options:
+            if option in kconfig_options.keys():
+                v = pmb.parse.kconfig \
+                    .get_required_options(kconfig_options[option],
+                                          pkgver, arch)
+                requirements.update(v)
+
+    with open(config_path, "w") as f:
+        text = ""
+        for option, value in requirements.items():
+            v = None
+            if isinstance(value, list):
+                v = f'"{value[0]}"'
+            elif value:
+                v = "y"
+            else:
+                v = "n"
+            text += f"CONFIG_{option}={v}\n"
+        f.write(text)
+
+    chroot_config_path = f"{args.work}/chroot_native/home/pmos/build/pmos.config"
+    pmb.helpers.run.root(args, ["mv", config_path, chroot_config_path])
+
+
+def get_outputdir(args, pkgname, apkbuild):
+    """
+    Get the folder for the kernel compilation output.
+    For most APKBUILDs, this is $builddir. But some older ones still use
+    $srcdir/build (see the discussion in #1551).
+    """
+    # Old style ($srcdir/build)
+    ret = "/home/pmos/build/src/build"
+    chroot = args.work + "/chroot_native"
+    if os.path.exists(f"{chroot}{ret}/.config"):
+        logging.warning("*****")
+        logging.warning("NOTE: The code in this linux APKBUILD is pretty old."
+                        " Consider making a backup and migrating to a modern"
+                        f" version with: pmbootstrap aportgen {pkgname}")
+        logging.warning("*****")
+
+        return ret
+
+    # New style ($builddir)
+    cmd = "srcdir=/home/pmos/build/src source APKBUILD; echo $builddir"
+    ret = pmb.chroot.user(args, ["sh", "-c", cmd],
+                          "native", "/home/pmos/build",
+                          output_return=True).rstrip()
+
+    if (os.path.exists(f"{chroot}{ret}/.config") or
+            get_fragment_name(args, apkbuild['arch'][0], f"{chroot}{ret}")):
+        return ret
+    # Some Mediatek kernels use a 'kernel' subdirectory
+    if os.path.exists(f"{chroot}{ret}/kernel/.config"):
+        return os.path.join(ret, "kernel")
+
+    # Out-of-tree builds ($_outdir)
+    outdir = apkbuild['_outdir']
+    if (os.path.exists(f"{chroot}{ret}/{outdir}/.config") or
+            get_fragment_name(args, apkbuild['arch'][0],
+                              f"{chroot}{ret}/{outdir}")):
+        return os.path.join(ret, outdir)
+
+    # Not found
+    raise RuntimeError("Could not find the kernel config. Consider making a"
+                       " backup of your APKBUILD and recreating it from the"
+                       f" template with: pmbootstrap aportgen {pkgname}")
+
+
+def get_fragment_name(args, arch, path):
+    if (os.path.exists(path)):
+        for f in os.listdir(path):
+            if f.endswith(f".{arch}") and not f.startswith("config"):
+                return f.split(".")[0]
+    raise RuntimeError("Config fragment file cannot be found")

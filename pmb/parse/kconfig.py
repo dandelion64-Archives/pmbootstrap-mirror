@@ -6,7 +6,8 @@ import re
 import os
 
 import pmb.build
-from pmb.build.menuconfig import get_outputdir, get_fragment_name
+from pmb.build.other import (get_outputdir, get_fragment_name,
+                             create_pmos_config)
 import pmb.chroot
 import pmb.config
 import pmb.parse
@@ -96,8 +97,7 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
     # Loop through necessary config options, and print a warning,
     # if any is missing
     ret = True
-    options = get_required_options(options, pkgver)
-    logging.info(options)
+    options = get_required_options(options, pkgver, config_arch)
     for option, option_value in options.items():
         if not check_option(component, details, config,
                             config_path_pretty, option, option_value):
@@ -172,10 +172,11 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
         pmb.chroot.apk.install(args, depends)
         pmb.build.copy_to_buildpath(args, f"linux-{flavor}")
         logging.info("(native) extract kernel source")
-        pmb.chroot.user(args, ["abuild", "unpack"], "native",
-                        "/home/pmos/build")
         for arch in apkbuild["arch"]:
+            pmb.chroot.user(args, ["abuild", "unpack"], "native",
+                            "/home/pmos/build")
             logging.info("(native) apply patches")
+            create_pmos_config(args, apkbuild, arch)
             pmb.chroot.user(args, ["abuild", "prepare"], "native",
                             "/home/pmos/build", output="interactive",
                             env={"CARCH": arch})
@@ -197,16 +198,20 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
         name, arch = os.path.basename(config_path).split(".")
         if fragment:
             config_path_pretty = f"{aport}/{name}.{arch}"
+            ret &= check_file(args, config_path, details=details)
+            if check_anbox:
+                ret &= check_file(args, config_path, anbox=True,
+                                  details=details)
         else:
             config_path_pretty = f"linux-{flavor}/" \
                                  f"{name}.{arch}"
-        ret &= check_config(config_path, config_path_pretty, arch,
-                            pkgver,
-                            anbox=check_anbox,
-                            nftables=check_nftables,
-                            containers=check_containers,
-                            zram=check_zram,
-                            details=details)
+            ret &= check_config(config_path, config_path_pretty, arch,
+                                pkgver,
+                                anbox=check_anbox,
+                                nftables=check_nftables,
+                                containers=check_containers,
+                                zram=check_zram,
+                                details=details)
     return ret
 
 

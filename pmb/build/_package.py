@@ -430,7 +430,14 @@ def run_abuild(args, apkbuild, arch, strict=False, force=False, cross=None,
     pmb.build.copy_to_buildpath(args, apkbuild["pkgname"], suffix)
     override_source(args, apkbuild, pkgver, src, suffix)
     link_to_git_dir(args, suffix)
-    pmb.chroot.user(args, cmd, suffix, "/home/pmos/build", env=env)
+    if "pmb:kconfig-fragments" in apkbuild["options"]:
+        prepare_cmd = cmd + ["sanitycheck", "clean", "fetch", "unpack"]
+        pmb.chroot.user(args, prepare_cmd, suffix, "/home/pmos/build", env=env)
+        pmb.build.other.create_pmos_config(args, apkbuild, arch)
+        pkg_cmd = cmd + ["prepare", "build", "check", "rootpkg"]
+        pmb.chroot.user(args, pkg_cmd, suffix, "/home/pmos/build", env=env)
+    else:
+        pmb.chroot.user(args, cmd, suffix, "/home/pmos/build", env=env)
     return (output, cmd, env)
 
 
