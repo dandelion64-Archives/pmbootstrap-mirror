@@ -11,9 +11,12 @@ import pmb.parse.bootimg
 
 def ask_for_architecture(args):
     architectures = pmb.config.build_device_architectures
+    # Don't show armhf, new ports shouldn't use this architecture
+    if "armhf" in architectures:
+        architectures.remove("armhf")
     while True:
         ret = pmb.helpers.cli.ask(args, "Device architecture", architectures,
-                                  architectures[0])
+                                  architectures[0], complete=architectures)
         if ret in architectures:
             return ret
         logging.fatal("ERROR: Invalid architecture specified. If you want to"
