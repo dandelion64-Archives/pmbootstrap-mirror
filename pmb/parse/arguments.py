@@ -53,6 +53,8 @@ def arguments_install(subparser):
     # Other arguments (that don't fit categories below)
     ret.add_argument("--no-sshd", action="store_true",
                      help="do not enable the SSH daemon by default")
+    ret.add_argument("--no-firewall", action="store_true",
+                     help="do not enable the firewall by default")
 
     # Image type
     group_desc = ret.add_argument_group(
@@ -435,6 +437,8 @@ def arguments_kconfig(subparser):
                        " directly instead of a config in a package")
     check.add_argument("--anbox", action="store_true", help="check"
                        " options needed for anbox too")
+    check.add_argument("--nftables", action="store_true", help="check"
+                       " options needed for nftables too")
     check_package = check.add_argument("package", default="", nargs='?')
     if argcomplete:
         check_package.completer = kernel_completer
