@@ -451,6 +451,13 @@ def embed_firmware(args, suffix):
     device_rootfs = mount_device_rootfs(args, suffix)
     binaries = args.deviceinfo["sd_embed_firmware"].split(",")
 
+    detect_overlap = True
+    if args.deviceinfo["sd_embed_detect_overlap"]:
+        detect_overlap = (args.deviceinfo["sd_embed_detect_overlap"] == "true")
+
+    if not detect_overlap:
+        logging.info("Embedding firmware overlap detection disabled")
+
     # Perform three checks prior to writing binaries to disk: 1) that binaries
     # exist, 2) that binaries do not extend into the first partition, 3) that
     # binaries do not overlap each other
@@ -480,14 +487,16 @@ def embed_firmware(args, suffix):
                                                              max_size))
         # Insure that the firmware does not conflict with any other firmware
         # that will be embedded
-        binary_start = offset * step
-        binary_end = binary_start + binary_size
-        for start, end in binary_ranges.items():
-            if ((binary_start >= start and binary_start <= end) or
-                    (binary_end >= start and binary_end <= end)):
-                raise RuntimeError("The firmware overlaps with at least one "
-                                   "other firmware image: {}".format(binary))
-        binary_ranges[binary_start] = binary_end
+        if detect_overlap:
+            binary_start = offset * step
+            binary_end = binary_start + binary_size
+            for start, end in binary_ranges.items():
+                if ((binary_start >= start and binary_start <= end) or
+                        (binary_end >= start and binary_end <= end)):
+                    raise RuntimeError("The firmware overlaps with at least "
+                                       f"one other firmware image: {binary}")
+            binary_ranges[binary_start] = binary_end
+
         binary_list.append((binary, offset))
 
     # Write binaries to disk

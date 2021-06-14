@@ -445,6 +445,7 @@ deviceinfo_attributes = [
     "rootfs_image_sector_size",
     "sd_embed_firmware",
     "sd_embed_firmware_step_size",
+    "sd_embed_check_overlap",
     "partition_blacklist",
     "boot_part_start",
     "root_filesystem",
