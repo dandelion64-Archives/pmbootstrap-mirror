@@ -40,8 +40,16 @@ def update_repository_list(args, suffix="native", check=False):
     else:
         pmb.helpers.run.root(args, ["mkdir", "-p", os.path.dirname(path)])
 
-    # Up to date: Save cache, return
     lines_new = pmb.helpers.repo.urls(args)
+    lines_temp = []
+    for line in lines_new:
+        if line in args.mirrors_postmarketos:
+            lines_temp.append("@pmos " + line)
+        else:
+            lines_temp.append(line)
+    lines_new = lines_temp
+
+    # Up to date: Save cache, return
     if lines_old == lines_new:
         args.cache["apk_repository_list_updated"].append(suffix)
         return
@@ -199,10 +207,15 @@ def install(args, packages, suffix="native", build=True):
     # Filter outdated packages (build them if required)
     packages_installed = installed(args, suffix)
     packages_todo = []
+    pmaports_packages = pmb.helpers.pmaports.get_list(args)
+
     for package in packages_with_depends:
         if install_is_necessary(
                 args, build, arch, package, packages_installed):
-            packages_todo.append(package)
+            if package in pmaports_packages:
+                package_todo.append(package + "@pmos")
+            else:
+                packages_todo.append(package)
     if not len(packages_todo):
         return
 
