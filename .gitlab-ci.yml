@@ -3,24 +3,6 @@
 
 image: alpine:latest
 
-cache:
-  paths:
-    - venv
-
-before_script:
-  - ./.gitlab/setup-pmos-environment.sh
-  # venv created in CI_PROJECT_DIR for caching
-  - "[[ ! -d venv ]] && virtualenv venv -p $(which python3)"
-  - "source venv/bin/activate"
-  - "apk -q add py3-pytest-cov py3-coveralls py3-pytest"
-  - "python3 --version"
-  - "su pmos -c 'git config --global user.email postmarketos-ci@localhost' || true"
-  - "su pmos -c 'git config --global user.name postmarketOS_CI' || true"
-
-stages:
-  - checks
-  - tests
-
 # defaults for "only"
 # We need to run the CI jobs in a "merge request specific context", if CI is
 # running in a merge request. Otherwise the environment variable that holds the
@@ -36,43 +18,44 @@ stages:
     - tags
 
 static-code-analysis:
-  stage: checks
   <<: *only-default
+  before_script:
+    - .ci/prepare.sh
   script:
-    # Note: This script uses CI_PROJECT_DIR
-    - su pmos -c "CI_PROJECT_DIR=$CI_PROJECT_DIR .gitlab/shared-runner_test-pmbootstrap.sh --static-code-analysis"
+    - su pmos -c "test/static_code_analysis.sh"
 
 vermin:
   image: alpine:latest
-  stage: checks
   <<: *only-default
   before_script:
   - "apk -q add py3-pip"
   - "pip3 -q --disable-pip-version-check install vermin"
   script:
-  - ".gitlab/vermin.sh"
+  - ".ci/vermin.sh"
 
 # MR settings
 # (Checks for "Allow commits from members who can merge to the target branch")
 mr-settings:
-  stage: checks
   only:
     - merge_requests
+  before_script:
+    - apk -q add python3
   script:
-    - .gitlab/check_mr_settings.py
+    - wget -q "https://gitlab.com/postmarketOS/ci-common/-/raw/master/check_mr_settings.py"
+    - python3 ./check_mr_settings.py
 
-test-pmbootstrap:
-  stage: tests
+pytest:
   <<: *only-default
+  before_script:
+    - .ci/prepare.sh
   script:
-    # Note: This script uses CI_PROJECT_DIR
-    - su pmos -c "CI_PROJECT_DIR=$CI_PROJECT_DIR .gitlab/shared-runner_test-pmbootstrap.sh --testcases-fast"
+    - su pmos -c .ci/pytest.sh
   after_script:
      # Move logs so it can be saved as artifacts
     - "[[ -f /home/pmos/.local/var/pmbootstrap/log.txt ]] && mv /home/pmos/.local/var/pmbootstrap/log.txt $CI_PROJECT_DIR/log.txt"
     - "[[ -f /home/pmos/.local/var/pmbootstrap/log_testsuite.txt ]] && mv /home/pmos/.local/var/pmbootstrap/log_testsuite.txt $CI_PROJECT_DIR/log_testsuite.txt"
     - "[[ -f /home/pmos/.config/pmbootstrap.cfg ]] && cp /home/pmos/.config/pmbootstrap.cfg $CI_PROJECT_DIR/pmbootstrap.cfg"
-    - "sudo dmesg > $CI_PROJECT_DIR/dmesg.txt"
+    - "dmesg > $CI_PROJECT_DIR/dmesg.txt"
   artifacts:
     when: always
     paths:
