@@ -321,6 +321,10 @@ def setup_hostname(args):
     # Generate /etc/hostname
     pmb.chroot.root(args, ["sh", "-c", "echo " + shlex.quote(hostname) +
                            " > /etc/hostname"], suffix)
+    # Generate /etc/conf.d/hostname (pma#768)
+    line = f"hostname={shlex.quote(hostname)}"
+    cmd = ["sh", "-c", f"echo {shlex.quote(line)} > /etc/conf.d/hostname"]
+    pmb.chroot.root(args, cmd, suffix)
     # Update /etc/hosts
     regex = (r"s/^127\.0\.0\.1.*/127.0.0.1\t" + re.escape(hostname) +
              " localhost.localdomain localhost/")
