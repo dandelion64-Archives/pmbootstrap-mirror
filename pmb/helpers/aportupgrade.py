@@ -71,7 +71,7 @@ def get_package_version_info_gitlab(gitlab_host: str, repo_name: str,
                                     ref: Optional[str]):
     logging.debug("Trying GitLab repository: {}".format(repo_name))
 
-    repo_name_safe = urllib.parse.quote(repo_name, safe='')
+    repo_name_safe = urllib.parse.quote(repo_name, safe='')  # type: ignore
 
     # Get the URL argument to request a special ref, if needed
     ref_arg = ""
@@ -137,7 +137,7 @@ def upgrade_git_package(args, pkgname: str, package) -> bool:
     pkgver = package["pkgver"]
     pkgver_match = re.match(r"([\d.]+)_git", pkgver)
     date_pkgver = verinfo["date"].strftime("%Y%m%d")
-    pkgver_new = f"{pkgver_match.group(1)}_git{date_pkgver}"
+    pkgver_new = f"{pkgver_match.group(1)}_git{date_pkgver}"  # type: ignore
 
     # pkgrel will be zero
     pkgrel = int(package["pkgrel"])
@@ -241,6 +241,7 @@ def upgrade(args, pkgname, git=True, stable=True) -> bool:
     else:
         if stable:
             return upgrade_stable_package(args, pkgname, package)
+    return False
 
 
 def upgrade_all(args) -> None:

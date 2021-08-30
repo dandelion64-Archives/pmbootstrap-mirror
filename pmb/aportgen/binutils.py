@@ -5,7 +5,7 @@ import pmb.helpers.git
 import pmb.helpers.run
 
 
-def generate(args, pkgname):
+def generate(args, pkgname) -> None:
     # Copy original aport
     arch = pkgname.split("-")[1]
     upstream = pmb.aportgen.core.get_upstream_aport(args, "binutils")

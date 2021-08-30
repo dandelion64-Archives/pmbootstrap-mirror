@@ -5,7 +5,7 @@ import copy
 import os
 
 try:
-    import argcomplete
+    import argcomplete  # type: ignore
 except ImportError:
     argcomplete = False
 
@@ -23,7 +23,7 @@ import pmb.helpers.pmaports
     See pmb/helpers/args.py for more information about the args variable. """
 
 
-def type_ondev_cp(val):
+def type_ondev_cp(val: str) -> list[str]:
     """ Parse and validate arguments to 'pmbootstrap install --ondev --cp'.
 
         :param val: 'HOST_SRC:CHROOT_DEST' string
@@ -46,7 +46,7 @@ def type_ondev_cp(val):
     return ret
 
 
-def arguments_install(subparser):
+def arguments_install(subparser) -> None:
     ret = subparser.add_parser("install", help="set up device specific"
                                " chroot and install to SD card or image file")
 
