@@ -12,16 +12,20 @@ def build(args, flavor, suffix):
     # Update mkinitfs and hooks
     pmb.chroot.apk.install(args, ["postmarketos-mkinitfs"], suffix)
     pmb.chroot.initfs_hooks.update(args, suffix)
+    pmaports_cfg = pmb.config.pmaports.read_config(args)
 
     # Call mkinitfs
     logging.info(f"({suffix}) mkinitfs {flavor}")
-    release_file = (f"{args.work}/chroot_{suffix}/usr/share/kernel/"
-                    f"{flavor}/kernel.release")
-    with open(release_file, "r") as handle:
-        release = handle.read().rstrip()
-    pmb.chroot.root(args, ["mkinitfs", "-o",
-                           f"/boot/initramfs-{flavor}", release],
-                    suffix)
+    if pmaports_cfg.get("supported_mkinitfs_without_flavors", False):
+        pmb.chroot.root(args, ["mkinitfs"], suffix)
+    else:
+        release_file = (f"{args.work}/chroot_{suffix}/usr/share/kernel/"
+                        f"{flavor}/kernel.release")
+        with open(release_file, "r") as handle:
+            release = handle.read().rstrip()
+            pmb.chroot.root(args, ["mkinitfs", "-o",
+                                   f"/boot/initramfs-{flavor}", release],
+                            suffix)
 
 
 def extract(args, flavor, suffix, extra=False):
@@ -76,10 +80,7 @@ def ls(args, flavor, suffix, extra=False):
 def frontend(args):
     # Find the appropriate kernel flavor
     suffix = f"rootfs_{args.device}"
-    flavors = pmb.chroot.other.kernel_flavors_installed(args, suffix)
-    flavor = flavors[0]
-    if hasattr(args, "flavor") and args.flavor:
-        flavor = args.flavor
+    flavor = pmb.chroot.other.kernel_flavor_installed(args, suffix)
 
     # Handle initfs actions
     action = args.action_initfs
@@ -105,9 +106,8 @@ def frontend(args):
         elif action == "hook_del":
             pmb.chroot.initfs_hooks.delete(args, args.hook, suffix)
 
-        # Rebuild the initfs for all kernels after adding/removing a hook
-        for flavor in flavors:
-            build(args, flavor, suffix)
+        # Rebuild the initfs after adding/removing a hook
+        build(args, flavor, suffix)
 
     if action in ["ls", "extract"]:
         link = "https://wiki.postmarketos.org/wiki/Initramfs_development"

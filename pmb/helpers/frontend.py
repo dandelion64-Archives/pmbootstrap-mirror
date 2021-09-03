@@ -38,24 +38,19 @@ def _parse_flavor(args, autoinstall=True):
     Verify the flavor argument if specified, or return a default value.
     :param autoinstall: make sure that at least one kernel flavor is installed
     """
-    # Install at least one kernel and get installed flavors
+    # Install a kernel and get its "flavor", where flavor is a pmOS-specific
+    # identifier that is typically in the form
+    # "postmarketos-<manufacturer>-<device/chip>", e.g.
+    # "postmarketos-qcom-sdm845"
     suffix = "rootfs_" + args.device
-    flavors = pmb.chroot.other.kernel_flavors_installed(
+    flavor = pmb.chroot.other.kernel_flavor_installed(
         args, suffix, autoinstall)
 
-    # Parse and verify the flavor argument
-    flavor = args.flavor
-    if flavor:
-        if flavor not in flavors:
-            raise RuntimeError(f"No kernel installed with flavor {flavor}!" +
-                               " Run 'pmbootstrap flasher list_flavors' to"
-                               " get a list.")
-        return flavor
-    if not len(flavors):
+    if not flavor:
         raise RuntimeError(
             "No kernel flavors installed in chroot " + suffix + "! Please let"
             " your device package depend on a package starting with 'linux-'.")
-    return flavors[0]
+    return flavor
 
 
 def _parse_suffix(args):
