@@ -95,7 +95,7 @@ def init(args, suffix="native"):
     pmb.chroot.apk_static.run(args, ["--root", chroot,
                                      "--cache-dir", apk_cache,
                                      "--initdb", "--arch", arch,
-                                     "add", "alpine-base"])
+                                     "add", "alpine-base", "postmarketos-keys"])
 
     # Building chroots: create "pmos" user, add symlinks to /home/pmos
     if not suffix.startswith("rootfs_"):
