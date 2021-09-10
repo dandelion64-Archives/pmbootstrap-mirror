@@ -7,7 +7,7 @@ import glob
 import pmb.helpers.git
 
 
-def indent_size(line):
+def indent_size(line: str) -> int:
     """
     Number of spaces at the beginning of a string.
     """
@@ -17,7 +17,7 @@ def indent_size(line):
     return 0
 
 
-def format_function(name, body, remove_indent=4):
+def format_function(name, body: str, remove_indent=4) -> str:
     """
     Format the body of a shell function passed to rewrite() below, so it fits
     the format of the original APKBUILD.
@@ -48,7 +48,7 @@ def format_function(name, body, remove_indent=4):
 
 def rewrite(args, pkgname, path_original="", fields={}, replace_pkgname=None,
             replace_functions={}, replace_simple={}, below_header="",
-            remove_indent=4):
+            remove_indent=4) -> None:
     """
     Append a header to $WORK/aportgen/APKBUILD, delete maintainer/contributor
     lines (so they won't be bugged with issues regarding our generated aports),

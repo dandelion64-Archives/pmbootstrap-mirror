@@ -4,6 +4,7 @@ import logging
 import os
 import re
 from collections import OrderedDict
+from typing import Optional
 
 import pmb.config
 import pmb.helpers.devices
@@ -32,9 +33,9 @@ def replace_variable(apkbuild, value: str) -> str:
     # ${foo}
     for match in revar.finditer(value):
         try:
-            logging.verbose("{}: replace '{}' with '{}'".format(
-                            apkbuild["pkgname"], match.group(0),
-                            apkbuild[match.group(1)]))
+            logging.verbose(f"{apkbuild['pkgname']}: replace"  # type: ignore
+                            f" '{match.group(0)}' with"
+                            f" '{apkbuild[match.group(1)]}'")
             value = value.replace(match.group(0), apkbuild[match.group(1)], 1)
         except KeyError:
             log_key_not_found(match)
@@ -43,9 +44,8 @@ def replace_variable(apkbuild, value: str) -> str:
     for match in revar2.finditer(value):
         try:
             newvalue = apkbuild[match.group(1)]
-            logging.verbose("{}: replace '{}' with '{}'".format(
-                            apkbuild["pkgname"], match.group(0),
-                            newvalue))
+            logging.verbose(f"{apkbuild['pkgname']}: replace"  # type: ignore
+                            f" '{match.group(0)}' with '{newvalue}'")
             value = value.replace(match.group(0), newvalue, 1)
         except KeyError:
             log_key_not_found(match)
@@ -59,8 +59,8 @@ def replace_variable(apkbuild, value: str) -> str:
             if replacement is None:  # arg 3 is optional
                 replacement = ""
             newvalue = newvalue.replace(search, replacement, 1)
-            logging.verbose("{}: replace '{}' with '{}'".format(
-                            apkbuild["pkgname"], match.group(0), newvalue))
+            logging.verbose(f"{apkbuild['pkgname']}: replace"  # type: ignore
+                            f" '{match.group(0)}' with '{newvalue}'")
             value = value.replace(match.group(0), newvalue, 1)
         except KeyError:
             log_key_not_found(match)
@@ -73,8 +73,8 @@ def replace_variable(apkbuild, value: str) -> str:
             substr = match.group(2)
             if newvalue.startswith(substr):
                 newvalue = newvalue.replace(substr, "", 1)
-            logging.verbose("{}: replace '{}' with '{}'".format(
-                            apkbuild["pkgname"], match.group(0), newvalue))
+            logging.verbose(f"{apkbuild['pkgname']}: replace"  # type: ignore
+                            f" '{match.group(0)}' with '{newvalue}'")
             value = value.replace(match.group(0), newvalue, 1)
         except KeyError:
             log_key_not_found(match)
@@ -82,7 +82,7 @@ def replace_variable(apkbuild, value: str) -> str:
     return value
 
 
-def function_body(path, func):
+def function_body(path: str, func: str) -> list[str]:
     """
     Get the body of a function in an APKBUILD.
 
@@ -107,7 +107,7 @@ def function_body(path, func):
     return func_body
 
 
-def read_file(path):
+def read_file(path: str) -> list[str]:
     """
     Read an APKBUILD file
 
@@ -121,7 +121,8 @@ def read_file(path):
     return lines
 
 
-def parse_attribute(attribute, lines, i, path):
+def parse_attribute(attribute: str, lines: list[str], i: int,
+                    path: str) -> tuple[bool, Optional[str], int]:
     """
     Parse one attribute from the APKBUILD.
 

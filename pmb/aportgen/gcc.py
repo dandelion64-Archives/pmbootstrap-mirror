@@ -5,7 +5,7 @@ import pmb.helpers.git
 import pmb.helpers.run
 
 
-def generate(args, pkgname):
+def generate(args, pkgname) -> None:
     # Copy original aport
     prefix = pkgname.split("-")[0]
     arch = pkgname.split("-")[1]
