@@ -38,7 +38,7 @@ class ReadlineTabCompleter:
         return None
 
 
-def ask(args, question="Continue?", choices=["y", "n"], default="n",
+def ask(logfd, question="Continue?", choices=["y", "n"], default="n",
         lowercase_answer=True, validation_regex=None, complete=None):
     """
     Ask a question on the terminal.
@@ -83,8 +83,8 @@ def ask(args, question="Continue?", choices=["y", "n"], default="n",
         if ret == "":
             ret = str(default)
 
-        args.logfd.write(f"{line}: {ret}\n")
-        args.logfd.flush()
+        logfd.write(f"{line}: {ret}\n")
+        logfd.flush()
 
         # Validate with regex
         if not validation_regex:
@@ -110,11 +110,11 @@ def confirm(args, question="Continue?", default=False, no_assumptions=False):
     if args.assume_yes and not no_assumptions:
         logging.info(question + " (y/n) [" + default_str + "]: y")
         return True
-    answer = ask(args, question, ["y", "n"], default_str, True, "(y|n)")
+    answer = ask(args.logfd, question, ["y", "n"], default_str, True, "(y|n)")
     return answer == "y"
 
 
-def progress_print(args, progress):
+def progress_print(details_to_stdout: bool, progress):
     """
     Print a snapshot of a progress bar to STDOUT. Call progress_flush to end
     printing progress and clear the line. No output is printed in
@@ -131,16 +131,16 @@ def progress_print(args, progress):
     filled = "\u2588" * chars
     empty = " " * (width - chars)
     percent = int(progress * 100)
-    if pmb.config.is_interactive and not args.details_to_stdout:
+    if pmb.config.is_interactive and not details_to_stdout:
         sys.stdout.write(f"\u001b7{percent:>3}% {filled}{empty}")
         sys.stdout.flush()
         sys.stdout.write("\u001b8\u001b[0K")
 
 
-def progress_flush(args):
+def progress_flush(details_to_stdout: bool):
     """
     Finish printing a progress bar. This will erase the line. Does nothing in
     non-interactive mode.
     """
-    if pmb.config.is_interactive and not args.details_to_stdout:
+    if pmb.config.is_interactive and not details_to_stdout:
         sys.stdout.flush()

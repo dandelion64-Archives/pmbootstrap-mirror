@@ -6,10 +6,10 @@ import os
 import pmb.config
 
 
-def load(args):
+def load(config):
     cfg = configparser.ConfigParser()
-    if os.path.isfile(args.config):
-        cfg.read(args.config)
+    if os.path.isfile(config):
+        cfg.read(config)
 
     if "pmbootstrap" not in cfg:
         cfg["pmbootstrap"] = {}

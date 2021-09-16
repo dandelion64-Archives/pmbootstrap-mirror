@@ -180,7 +180,8 @@ def update(args, arch=None, force=False, existing_only=False):
 
     # Download and move to right location
     for (i, (url, target)) in enumerate(outdated.items()):
-        pmb.helpers.cli.progress_print(args, i / len(outdated))
+        pmb.helpers.cli.progress_print(args.details_to_stdout,
+                                       i / len(outdated))
         temp = pmb.helpers.http.download(args, url, "APKINDEX", False,
                                          logging.DEBUG, True)
         if not temp:
@@ -190,7 +191,7 @@ def update(args, arch=None, force=False, existing_only=False):
         if not os.path.exists(target_folder):
             pmb.helpers.run.root(args, ["mkdir", "-p", target_folder])
         pmb.helpers.run.root(args, ["cp", temp, target])
-    pmb.helpers.cli.progress_flush(args)
+    pmb.helpers.cli.progress_flush(args.details_to_stdout)
 
     return True
 

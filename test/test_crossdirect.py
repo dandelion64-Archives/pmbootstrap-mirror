@@ -39,7 +39,7 @@ def test_crossdirect_rust(args):
     pmbootstrap_run(args, ["-y", "zap"])
 
     # Remember previously selected device
-    cfg = pmb.config.load(args)
+    cfg = pmb.config.load(args.config)
     old_device = cfg['pmbootstrap']['device']
 
     try:
