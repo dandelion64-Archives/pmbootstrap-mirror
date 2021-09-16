@@ -217,6 +217,7 @@ def setup_login(args, suffix):
         logging.info(" *** SET LOGIN PASSWORD FOR: '" + args.user + "' ***")
         while True:
             try:
+                print('\a', end='')
                 pmb.chroot.root(args, ["passwd", args.user], suffix,
                                 output="interactive")
                 break

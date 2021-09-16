@@ -54,6 +54,7 @@ def format_luks_root(args, device):
     # Avoid cryptsetup warning about missing locking directory
     pmb.chroot.root(args, ["mkdir", "-p", "/run/cryptsetup"])
 
+    print('\a', end='')
     pmb.chroot.root(args, ["cryptsetup", "luksFormat",
                            "-q",
                            "--cipher", args.cipher,

@@ -71,6 +71,7 @@ def ask(args, question="Continue?", choices=["y", "n"], default="n",
             readline.set_completer(
                 ReadlineTabCompleter(complete).completer_func)
 
+        print('\a', end='')
         ret = input(f"{line_color}: ")
 
         # Stop completing (question is answered)
