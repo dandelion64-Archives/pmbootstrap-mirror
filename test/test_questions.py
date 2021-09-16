@@ -61,7 +61,7 @@ def test_questions_strings(args, monkeypatch):
     functions = [pmb.aportgen.device.ask_for_manufacturer]
     for func in functions:
         fake_answers(monkeypatch, ["Simple string answer"])
-        assert func(args) == "Simple string answer"
+        assert func(args.logfd) == "Simple string answer"
 
 
 def test_questions_name(args, monkeypatch):
@@ -69,18 +69,18 @@ def test_questions_name(args, monkeypatch):
 
     # Manufacturer should get added automatically, but not twice
     fake_answers(monkeypatch, ["Amazon Thor"])
-    assert func(args, "Amazon") == "Amazon Thor"
+    assert func(args.logfd, "Amazon") == "Amazon Thor"
     fake_answers(monkeypatch, ["Thor"])
-    assert func(args, "Amazon") == "Amazon Thor"
+    assert func(args.logfd, "Amazon") == "Amazon Thor"
 
     # Don't add the manufacturer when it starts with "Google"
     fake_answers(monkeypatch, ["Google Nexus 12345"])
-    assert func(args, "Amazon") == "Google Nexus 12345"
+    assert func(args.logfd, "Amazon") == "Google Nexus 12345"
 
 
 def test_questions_arch(args, monkeypatch):
     fake_answers(monkeypatch, ["invalid_arch", "aarch64"])
-    assert pmb.aportgen.device.ask_for_architecture(args) == "aarch64"
+    assert pmb.aportgen.device.ask_for_architecture(args.logfd) == "aarch64"
 
 
 def test_questions_bootimg(args, monkeypatch):
@@ -196,16 +196,16 @@ def test_questions_device_nonfree(args, monkeypatch):
 def test_questions_flash_methods(args, monkeypatch):
     func = pmb.aportgen.device.ask_for_flash_method
     fake_answers(monkeypatch, ["invalid_flash_method", "fastboot"])
-    assert func(args) == "fastboot"
+    assert func(args.logfd) == "fastboot"
 
     fake_answers(monkeypatch, ["0xffff"])
-    assert func(args) == "0xffff"
+    assert func(args.logfd) == "0xffff"
 
     fake_answers(monkeypatch, ["heimdall", "invalid_type", "isorec"])
-    assert func(args) == "heimdall-isorec"
+    assert func(args.logfd) == "heimdall-isorec"
 
     fake_answers(monkeypatch, ["heimdall", "bootimg"])
-    assert func(args) == "heimdall-bootimg"
+    assert func(args.logfd) == "heimdall-bootimg"
 
 
 def test_questions_keymaps(args, monkeypatch):

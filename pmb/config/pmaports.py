@@ -31,17 +31,17 @@ def clone(args):
     pmb.helpers.git.clone(args, "pmaports")
 
 
-def symlink(args):
+def symlink(aports):
     # Create the symlink
     # This won't work when pmbootstrap was installed system wide, but that's
     # okay since the symlink is only intended to make the migration to the
     # pmaports repository easier.
     link = pmb.config.pmb_src + "/aports"
     try:
-        os.symlink(args.aports, link)
+        os.symlink(aports, link)
         logging.info("NOTE: pmaports path: " + link)
     except:
-        logging.info("NOTE: pmaports path: " + args.aports)
+        logging.info("NOTE: pmaports path: " + aports)
 
 
 def check_version_pmaports(real):
@@ -151,7 +151,7 @@ def init(args):
     check_legacy_folder()
     if not os.path.exists(args.aports):
         clone(args)
-    symlink(args)
+    symlink(args.aports)
     read_config(args)
 
 

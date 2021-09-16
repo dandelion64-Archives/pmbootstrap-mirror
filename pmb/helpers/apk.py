@@ -104,8 +104,9 @@ def apk_with_progress(args, command, chroot=False, suffix="native"):
             while p_apk.poll() is None:
                 line = p_cat.stdout.readline().decode('utf-8')
                 progress = _compute_progress(line)
-                pmb.helpers.cli.progress_print(args, progress)
-            pmb.helpers.cli.progress_flush(args)
+                pmb.helpers.cli.progress_print(args.details_to_stdout,
+                                               progress)
+            pmb.helpers.cli.progress_flush(args.details_to_stdout)
             pmb.helpers.run_core.check_return_code(args, p_apk.returncode,
                                                    log_msg)
 
