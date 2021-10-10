@@ -7,6 +7,7 @@ import os
 
 import pmb.build
 import pmb.config
+import pmb.config.pmaports
 import pmb.parse
 import pmb.helpers.pmaports
 
@@ -123,6 +124,28 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
     return ret
 
 
+def check_anbox_enabled(args, apkbuild):
+    """ Figure out whether to check for anbox kconfig options, based on
+        'pmb:kconfigcheck-anbox' and pmaports.cfg. As of writing (2021-10),
+        waydroid specific CONFIG_PSI was added to kconfig_options_anbox but
+        kernel configs were only adjusted in master and not in v21.06.
+
+        :returns: True if anbox options should be checked, False otherwise
+    """
+    if "pmb:kconfigcheck-anbox" not in apkbuild["options"]:
+        return False
+
+    pmaports_cfg = pmb.config.pmaports.read_config(args)
+    if pmaports_cfg.get("supported_kconfig_anbox", "False") == "True":
+        return True
+
+    channel = pmaports_cfg.get("channel")
+    logging.warning(f"WARNING: {apkbuild['pkgname']}: ignoring"
+                    " pmb:kconfigcheck-anbox based on pmaports.cfg for"
+                    f" {channel}")
+    return False
+
+
 def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
           force_containers_check=False, force_zram_check=False, details=False):
     """
@@ -143,8 +166,7 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
     aport = pmb.helpers.pmaports.find(args, "linux-" + flavor)
     apkbuild = pmb.parse.apkbuild(args, aport + "/APKBUILD")
     pkgver = apkbuild["pkgver"]
-    check_anbox = force_anbox_check or (
-        "pmb:kconfigcheck-anbox" in apkbuild["options"])
+    check_anbox = force_anbox_check or check_anbox_enabled(args, apkbuild)
     check_nftables = force_nftables_check or (
         "pmb:kconfigcheck-nftables" in apkbuild["options"])
     check_containers = force_containers_check or (

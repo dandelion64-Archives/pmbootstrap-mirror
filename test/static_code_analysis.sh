@@ -15,7 +15,7 @@ echo "Initializing Alpine chroot (details: 'pmbootstrap log')"
 ./pmbootstrap.py -q chroot -- apk -q add \
 	shellcheck \
 	python3 \
-	py3-flake8 || return 1
+	py3-flake8
 
 rootfs_native="$(./pmbootstrap.py config work)/chroot_native"
 command="$rootfs_native/lib/ld-musl-$(uname -m).so.1"
