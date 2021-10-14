@@ -97,10 +97,10 @@ defaults = {
     "keymap": "",
     "locale": "C.UTF-8",
     "log": "$WORK/log.txt",
-    "mirror_alpine": "http://dl-cdn.alpinelinux.org/alpine/",
+    "mirror_alpine": "https://dl-cdn.alpinelinux.org/alpine/",
     # NOTE: mirrors_postmarketos variable type is supposed to be
     #       comma-separated string, not a python list or any other type!
-    "mirrors_postmarketos": "http://mirror.postmarketos.org/postmarketos/",
+    "mirrors_postmarketos": "https://mirror.postmarketos.org/postmarketos/",
     "nonfree_firmware": True,
     "nonfree_userland": False,
     "port_distccd": "33632",
