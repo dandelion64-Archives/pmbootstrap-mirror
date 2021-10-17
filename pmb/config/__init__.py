@@ -659,7 +659,7 @@ install_user_groups = ["wheel", "video", "audio", "input", "plugdev", "netdev"]
 # FLASH
 #
 
-flash_methods = ["fastboot", "heimdall", "0xffff", "uuu", "none"]
+flash_methods = ["fastboot", "heimdall", "0xffff", "uuu", "pongoos", "none"]
 
 # These folders will be mounted at the same location into the native
 # chroot, before the flash programs get started.
@@ -786,6 +786,16 @@ flashers = {
                 ["uuu", "flash_script.lst"],
             ],
         },
+    },
+    "pongoos": {
+        "depends": ["pongoos-loader", "checkra1n"],
+        "actions": {
+            "boot": [
+                # Following commands require root access to run successfully
+                ["sudo", "sh", "-c 'checkra1n -cpE && \
+                        pongoos-loader -k $BOOT/Image.lzma -d $BOOT/dtbpack'"]
+            ],
+        }
     }
 }
 
