@@ -12,7 +12,7 @@ import pmb.helpers.pmaports
 import pmb.parse
 
 
-def match_kbuild_out(args, word):
+def match_kbuild_out(word):
     """
     Look for paths in the following formats:
       "<prefix>/<kbuild_out>/arch/<arch>/boot"
@@ -47,7 +47,7 @@ def match_kbuild_out(args, word):
     return "" if out_dir is None else out_dir.strip("/")
 
 
-def find_kbuild_output_dir(args, function_body):
+def find_kbuild_output_dir(function_body):
     """
     Guess what the kernel build output directory is. Parses each line of the
     function word by word, looking for paths which contain the kbuild output
@@ -61,7 +61,7 @@ def find_kbuild_output_dir(args, function_body):
     guesses = []
     for line in function_body:
         for item in line.split():
-            kbuild_out = match_kbuild_out(args, item)
+            kbuild_out = match_kbuild_out(item)
             if kbuild_out is not None:
                 guesses.append(kbuild_out)
                 break
@@ -142,7 +142,7 @@ def run_abuild(args, pkgname, arch, apkbuild_path, kbuild_out):
     # Create the apk package
     env = {"CARCH": arch,
            "CHOST": arch,
-           "CBUILD": args.arch_native,
+           "CBUILD": pmb.config.arch_native,
            "SUDO_APK": "abuild-apk --no-progress"}
     cmd = ["abuild", "rootpkg"]
     pmb.chroot.user(args, cmd, working_dir=build_path, env=env)
@@ -176,12 +176,12 @@ def package_kernel(args):
         kbuild_out = apkbuild["_outdir"]
     else:
         function_body = pmb.parse.function_body(aport + "/APKBUILD", "package")
-        kbuild_out = find_kbuild_output_dir(args, function_body)
-    suffix = pmb.build.autodetect.suffix(args, apkbuild, arch)
+        kbuild_out = find_kbuild_output_dir(function_body)
+    suffix = pmb.build.autodetect.suffix(apkbuild, arch)
 
     # Install package dependencies
     depends, _ = pmb.build._package.build_depends(
-        args, apkbuild, args.arch_native, strict=False)
+        args, apkbuild, pmb.config.arch_native, strict=False)
     pmb.build.init(args, suffix)
     pmb.chroot.apk.install(args, depends, suffix)
 
