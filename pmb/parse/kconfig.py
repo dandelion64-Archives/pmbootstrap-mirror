@@ -19,6 +19,17 @@ def is_set(config, option):
     return re.search("^CONFIG_" + option + "=[ym]$", config, re.M) is not None
 
 
+def is_set_str(config, option, string):
+    """
+    Check, whether a config option contains a string as value.
+    """
+    match = re.search("^CONFIG_" + option + "=\"(.*)\"$", config, re.M)
+    if match:
+        return string == match.group(1)
+    else:
+        return False
+
+
 def is_in_array(config, option, string):
     """
     Check, whether a config option contains string as an array element
@@ -47,6 +58,15 @@ def check_option(component, details, config, config_path_pretty, option,
                 else:
                     logging.warning(warning_no_details)
                 return False
+    elif isinstance(option_value, str):
+        if not is_set_str(config, option, option_value):
+            if details:
+                logging.info(f"WARNING: {config_path_pretty}: CONFIG_{option}"
+                             f' should be set to "{option_value}".'
+                             f" See <{link}> for details.")
+            else:
+                logging.warning(warning_no_details)
+            return False
     elif option_value in [True, False]:
         if option_value != is_set(config, option):
             if details:
@@ -57,15 +77,20 @@ def check_option(component, details, config, config_path_pretty, option,
                 logging.warning(warning_no_details)
             return False
     else:
-        raise RuntimeError("kconfig check code can only handle True/False and"
-                           " arrays now, given value '" + str(option_value) +
-                           "' is not supported. If you need this, please open"
-                           " an issue.")
+        raise RuntimeError("kconfig check code can only handle booleans,"
+                           f" strings and arrays. Given value {option_value}"
+                           " is not supported. If you need this, please patch"
+                           " pmbootstrap or open an issue.")
     return True
 
 
 def check_config(config_path, config_path_pretty, config_arch, pkgver,
-                 anbox=False, nftables=False, containers=False, zram=False,
+                 anbox=False,
+                 apparmor=False,
+                 iwd=False,
+                 nftables=False,
+                 containers=False,
+                 zram=False,
                  details=False):
     logging.debug(f"Check kconfig: {config_path}")
     with open(config_path) as handle:
@@ -74,6 +99,10 @@ def check_config(config_path, config_path_pretty, config_arch, pkgver,
     components = {"postmarketOS": pmb.config.necessary_kconfig_options}
     if anbox:
         components["anbox"] = pmb.config.necessary_kconfig_options_anbox
+    if apparmor:
+        components["apparmor"] = pmb.config.necessary_kconfig_options_apparmor
+    if iwd:
+        components["iwd"] = pmb.config.necessary_kconfig_options_iwd
     if nftables:
         components["nftables"] = pmb.config.necessary_kconfig_options_nftables
     if containers:
@@ -123,8 +152,14 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
     return ret
 
 
-def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
-          force_containers_check=False, force_zram_check=False, details=False):
+def check(args, pkgname,
+          force_anbox_check=False,
+          force_apparmor_check=False,
+          force_iwd_check=False,
+          force_nftables_check=False,
+          force_containers_check=False,
+          force_zram_check=False,
+          details=False):
     """
     Check for necessary kernel config options in a package.
 
@@ -145,6 +180,10 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
     pkgver = apkbuild["pkgver"]
     check_anbox = force_anbox_check or (
         "pmb:kconfigcheck-anbox" in apkbuild["options"])
+    check_apparmor = force_apparmor_check or (
+        "pmb:kconfigcheck-apparmor" in apkbuild["options"])
+    check_iwd = force_iwd_check or (
+        "pmb:kconfigcheck-iwd" in apkbuild["options"])
     check_nftables = force_nftables_check or (
         "pmb:kconfigcheck-nftables" in apkbuild["options"])
     check_containers = force_containers_check or (
@@ -159,6 +198,8 @@ def check(args, pkgname, force_anbox_check=False, force_nftables_check=False,
         ret &= check_config(config_path, config_path_pretty, config_arch,
                             pkgver,
                             anbox=check_anbox,
+                            apparmor=check_apparmor,
+                            iwd=check_iwd,
                             nftables=check_nftables,
                             containers=check_containers,
                             zram=check_zram,
