@@ -100,6 +100,41 @@ def guess_main(args, subpkgname):
             return os.path.dirname(path)
 
 
+def _find_package_in_apkbuild(args, package, path):
+    """
+    Look through subpackages and all provides to see if the APKBUILD at the
+    specified path contains (or provides) the specified package.
+
+    :param package: The package to search for
+    :param path: The path to the apkbuild
+    :return: True if the APKBUILD contains or provides the package
+    """
+    apkbuild = pmb.parse.apkbuild(args, path)
+
+    # Subpackages
+    if package in apkbuild["subpackages"]:
+        return True
+
+    # Search for provides in both package and subpackages
+    apkbuild_pkgs = [apkbuild, *apkbuild["subpackages"].values()]
+    for apkbuild_pkg in apkbuild_pkgs:
+        if not apkbuild_pkg:
+            continue
+
+        # Provides (cut off before equals sign for entries like
+        # "mkbootimg=0.0.1")
+        for provides_i in apkbuild_pkg["provides"]:
+            # Ignore provides without version, they shall never be
+            # automatically selected
+            if "=" not in provides_i:
+                continue
+
+            if package == provides_i.split("=", 1)[0]:
+                return True
+
+    return False
+
+
 def find(args, package, must_exist=True):
     """
     Find the aport path that provides a certain subpackage.
@@ -123,36 +158,23 @@ def find(args, package, must_exist=True):
         if path:
             ret = os.path.dirname(path)
 
+        # Try to guess based on the subpackage name
+        guess = guess_main(args, package)
+        if guess:
+            # ... but see if we were right
+            if _find_package_in_apkbuild(args, package, f'{guess}/APKBUILD'):
+                ret = guess
+
         # Search in subpackages and provides
         if not ret:
             for path_current in _find_apkbuilds(args).values():
-                apkbuild = pmb.parse.apkbuild(args, path_current)
-                found = False
-
-                # Subpackages
-                if package in apkbuild["subpackages"]:
-                    found = True
-
-                # Provides (cut off before equals sign for entries like
-                # "mkbootimg=0.0.1")
-                if not found:
-                    for provides_i in apkbuild["provides"]:
-                        # Ignore provides without version, they shall never be
-                        # automatically selected
-                        if "=" not in provides_i:
-                            continue
-
-                        if package == provides_i.split("=", 1)[0]:
-                            found = True
-                            break
-
-                if found:
+                if _find_package_in_apkbuild(args, package, path_current):
                     ret = os.path.dirname(path_current)
                     break
 
-        # Guess a main package
+        # Use the guess otherwise
         if not ret:
-            ret = guess_main(args, package)
+            ret = guess
 
     # Crash when necessary
     if ret is None and must_exist:
@@ -195,6 +217,30 @@ def get(args, pkgname, must_exist=True, subpackages=True):
                                f" {pkgname}")
 
     return None
+
+
+def find_providers(args, provide):
+    """
+    Search for providers of the specified (virtual) package in pmaports.
+    Note: Currently only providers from a single APKBUILD are returned.
+
+    :param provide: the (virtual) package to search providers for
+    :returns: tuple list (pkgname, apkbuild_pkg) with providers, sorted by
+              provider_priority. The provider with the highest priority
+              (which would be selected by default) comes first.
+    """
+
+    providers = {}
+
+    apkbuild = get(args, provide)
+    for subpkgname, subpkg in apkbuild["subpackages"].items():
+        for provides in subpkg["provides"]:
+            # Strip provides version (=$pkgver-r$pkgrel)
+            if provides.split("=", 1)[0] == provide:
+                providers[subpkgname] = subpkg
+
+    return sorted(providers.items(), reverse=True,
+                  key=lambda p: p[1].get('provider_priority', 0))
 
 
 def get_repo(args, pkgname, must_exist=True):

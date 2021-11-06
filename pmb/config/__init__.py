@@ -559,6 +559,7 @@ apkbuild_package_attributes = {
     "pkgdesc": {},
     "depends": {"array": True},
     "provides": {"array": True},
+    "provider_priority": {"int": True},
     "install": {"array": True},
 
     # UI meta-packages can specify apps in "_pmb_recommends" to be explicitly
@@ -571,6 +572,11 @@ apkbuild_package_attributes = {
     # UI meta-packages can specify groups to which the user must be added
     # to access specific hardware such as LED indicators.
     "_pmb_groups": {"array": True},
+
+    # postmarketos-base, UI and device packages can use _pmb_select to provide
+    # additional configuration options in "pmbootstrap init" that allow
+    # selecting alternative providers for a virtual APK package.
+    "_pmb_select": {"array": True},
 }
 
 # Variables in APKBUILD files that get parsed
