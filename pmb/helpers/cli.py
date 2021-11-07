@@ -39,7 +39,8 @@ class ReadlineTabCompleter:
 
 
 def ask(question="Continue?", choices=["y", "n"], default="n",
-        lowercase_answer=True, validation_regex=None, complete=None):
+        lowercase_answer=True, validation_regex=None, complete=None,
+        accept_default=False):
     """
     Ask a question on the terminal.
     :param question: display prompt
@@ -49,6 +50,7 @@ def ask(question="Continue?", choices=["y", "n"], default="n",
     :param lowercase_answer: if True, convert return value to lower case
     :param validation_regex: if set, keep asking until regex matches
     :param complete: set to a list to enable tab completion
+    :param accept_default: display question and accept the default
     """
     styles = pmb.config.styles
 
@@ -59,8 +61,7 @@ def ask(question="Continue?", choices=["y", "n"], default="n",
             line += f" ({str.join('/', choices)})"
         if default:
             line += f" [{default}]"
-        line_color = f"[{date}] {styles['BOLD']}{line}{styles['END']}"
-        line = f"[{date}] {line}"
+        line_color = f"{styles['BOLD']}{line}{styles['END']}"
 
         if complete:
             readline.parse_and_bind('tab: complete')
@@ -71,7 +72,11 @@ def ask(question="Continue?", choices=["y", "n"], default="n",
             readline.set_completer(
                 ReadlineTabCompleter(complete).completer_func)
 
-        ret = input(f"{line_color}: ")
+        if default and accept_default:
+            logging.info(f"{line_color}: {default}")
+            ret = default
+        else:
+            ret = input(f"[{date}] {line_color}: ")
 
         # Stop completing (question is answered)
         if complete:
@@ -83,7 +88,7 @@ def ask(question="Continue?", choices=["y", "n"], default="n",
         if ret == "":
             ret = str(default)
 
-        pmb.helpers.logging.logfd.write(f"{line}: {ret}\n")
+        pmb.helpers.logging.logfd.write(f"[{date}] {line}: {ret}\n")
         pmb.helpers.logging.logfd.flush()
 
         # Validate with regex
@@ -108,7 +113,10 @@ def confirm(args, question="Continue?", default=False, no_assumptions=False):
     """
     default_str = "y" if default else "n"
     if args.assume_yes and not no_assumptions:
-        logging.info(question + " (y/n) [" + default_str + "]: y")
+        styles = pmb.config.styles
+        line = f"{question} (y/n) [{default_str}]"
+        line = f"{styles['BOLD']}{line}{styles['END']}: y"
+        logging.info(line)
         return True
     answer = ask(question, ["y", "n"], default_str, True, "(y|n)")
     return answer == "y"

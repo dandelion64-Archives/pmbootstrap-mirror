@@ -36,7 +36,8 @@ def fake_answers(monkeypatch, answers):
                     the second question with "n" and so on.
     """
     def fake_ask(question="Continue?", choices=["y", "n"], default="n",
-                 lowercase_answer=True, validation_regex=None, complete=None):
+                 lowercase_answer=True, validation_regex=None, complete=None,
+                 accept_default=False):
         answer = answers.pop(0)
         logging.info("pmb.helpers.cli.ask() fake answer: " + answer)
         return answer
