@@ -18,7 +18,7 @@ def package(args, pkgname, reason="", dry=False):
     """
     # Current and new pkgrel
     path = pmb.helpers.pmaports.find(args, pkgname) + "/APKBUILD"
-    apkbuild = pmb.parse.apkbuild(args, path)
+    apkbuild = pmb.parse.apkbuild(path)
     pkgrel = int(apkbuild["pkgrel"])
     pkgrel_new = pkgrel + 1
 
@@ -34,8 +34,8 @@ def package(args, pkgname, reason="", dry=False):
     pmb.helpers.file.replace(path, old, new)
 
     # Verify
-    del(args.cache["apkbuild"][path])
-    apkbuild = pmb.parse.apkbuild(args, path)
+    del(pmb.helpers.other.cache["apkbuild"][path])
+    apkbuild = pmb.parse.apkbuild(path)
     if int(apkbuild["pkgrel"]) != pkgrel_new:
         raise RuntimeError("Failed to bump pkgrel for package '" + pkgname +
                            "'. Make sure that there's a line with exactly the"
@@ -107,7 +107,7 @@ def auto(args, dry=False):
         paths = pmb.helpers.repo.apkindex_files(args, arch, alpine=False)
         for path in paths:
             logging.info("scan " + path)
-            index = pmb.parse.apkindex.parse(args, path, False)
+            index = pmb.parse.apkindex.parse(path, False)
             for pkgname, apk in index.items():
                 origin = apk["origin"]
                 # Only increase once!
@@ -120,7 +120,7 @@ def auto(args, dry=False):
                     logging.warning("{}: origin '{}' aport not found".format(
                                     pkgname, origin))
                     continue
-                aport = pmb.parse.apkbuild(args, aport_path + "/APKBUILD")
+                aport = pmb.parse.apkbuild(f"{aport_path}/APKBUILD")
                 if auto_apkindex_package(args, arch, aport, apk, dry):
                     ret.append(pkgname)
     return ret

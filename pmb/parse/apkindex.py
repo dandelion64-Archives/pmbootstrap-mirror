@@ -142,7 +142,7 @@ def parse_add_block(ret, block, alias=None, multiple_providers=True):
         ret[alias] = block
 
 
-def parse(args, path, multiple_providers=True):
+def parse(path, multiple_providers=True):
     """
     Parse an APKINDEX.tar.gz file, and return its content as dictionary.
 
@@ -179,13 +179,13 @@ def parse(args, path, multiple_providers=True):
     # Try to get a cached result first
     lastmod = os.path.getmtime(path)
     cache_key = "multiple" if multiple_providers else "single"
-    if path in args.cache["apkindex"]:
-        cache = args.cache["apkindex"][path]
+    if path in pmb.helpers.other.cache["apkindex"]:
+        cache = pmb.helpers.other.cache["apkindex"][path]
         if cache["lastmod"] == lastmod:
             if cache_key in cache:
                 return cache[cache_key]
         else:
-            clear_cache(args, path)
+            clear_cache(path)
 
     # Read all lines
     if tarfile.is_tarfile(path):
@@ -217,9 +217,9 @@ def parse(args, path, multiple_providers=True):
                 parse_add_block(ret, block, alias, multiple_providers)
 
     # Update the cache
-    if path not in args.cache["apkindex"]:
-        args.cache["apkindex"][path] = {"lastmod": lastmod}
-    args.cache["apkindex"][path][cache_key] = ret
+    if path not in pmb.helpers.other.cache["apkindex"]:
+        pmb.helpers.other.cache["apkindex"][path] = {"lastmod": lastmod}
+    pmb.helpers.other.cache["apkindex"][path][cache_key] = ret
     return ret
 
 
@@ -250,19 +250,19 @@ def parse_blocks(path):
         ret.append(block)
 
 
-def clear_cache(args, path):
+def clear_cache(path):
     """
     Clear the APKINDEX parsing cache.
 
     :returns: True on successful deletion, False otherwise
     """
     logging.verbose("Clear APKINDEX cache for: " + path)
-    if path in args.cache["apkindex"]:
-        del args.cache["apkindex"][path]
+    if path in pmb.helpers.other.cache["apkindex"]:
+        del pmb.helpers.other.cache["apkindex"][path]
         return True
     else:
         logging.verbose("Nothing to do, path was not in cache:" +
-                        str(args.cache["apkindex"].keys()))
+                        str(pmb.helpers.other.cache["apkindex"].keys()))
         return False
 
 
@@ -293,7 +293,7 @@ def providers(args, package, arch=None, must_exist=True, indexes=None):
     ret = collections.OrderedDict()
     for path in indexes:
         # Skip indexes not providing the package
-        index_packages = parse(args, path)
+        index_packages = parse(path)
         if package not in index_packages:
             continue
 

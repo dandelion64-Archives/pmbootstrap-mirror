@@ -15,7 +15,7 @@ import pmb.parse
 def _find_apkbuilds(args):
     # Try to get a cached result first (we assume that the aports don't change
     # in one pmbootstrap call)
-    apkbuilds = args.cache.get("pmb.helpers.pmaports.apkbuilds")
+    apkbuilds = pmb.helpers.other.cache.get("pmb.helpers.pmaports.apkbuilds")
     if apkbuilds is not None:
         return apkbuilds
 
@@ -32,7 +32,7 @@ def _find_apkbuilds(args):
     apkbuilds = dict(sorted(apkbuilds.items()))
 
     # Save result in cache
-    args.cache["pmb.helpers.pmaports.apkbuilds"] = apkbuilds
+    pmb.helpers.other.cache["pmb.helpers.pmaports.apkbuilds"] = apkbuilds
     return apkbuilds
 
 
@@ -100,7 +100,7 @@ def guess_main(args, subpkgname):
             return os.path.dirname(path)
 
 
-def _find_package_in_apkbuild(args, package, path):
+def _find_package_in_apkbuild(package, path):
     """
     Look through subpackages and all provides to see if the APKBUILD at the
     specified path contains (or provides) the specified package.
@@ -109,7 +109,7 @@ def _find_package_in_apkbuild(args, package, path):
     :param path: The path to the apkbuild
     :return: True if the APKBUILD contains or provides the package
     """
-    apkbuild = pmb.parse.apkbuild(args, path)
+    apkbuild = pmb.parse.apkbuild(path)
 
     # Subpackages
     if package in apkbuild["subpackages"]:
@@ -146,8 +146,8 @@ def find(args, package, must_exist=True):
     # Try to get a cached result first (we assume that the aports don't change
     # in one pmbootstrap call)
     ret = None
-    if package in args.cache["find_aport"]:
-        ret = args.cache["find_aport"][package]
+    if package in pmb.helpers.other.cache["find_aport"]:
+        ret = pmb.helpers.other.cache["find_aport"][package]
     else:
         # Sanity check
         if "*" in package:
@@ -162,13 +162,13 @@ def find(args, package, must_exist=True):
         guess = guess_main(args, package)
         if guess:
             # ... but see if we were right
-            if _find_package_in_apkbuild(args, package, f'{guess}/APKBUILD'):
+            if _find_package_in_apkbuild(package, f'{guess}/APKBUILD'):
                 ret = guess
 
         # Search in subpackages and provides
         if not ret:
             for path_current in _find_apkbuilds(args).values():
-                if _find_package_in_apkbuild(args, package, path_current):
+                if _find_package_in_apkbuild(package, path_current):
                     ret = os.path.dirname(path_current)
                     break
 
@@ -182,7 +182,7 @@ def find(args, package, must_exist=True):
                            package)
 
     # Save result in cache
-    args.cache["find_aport"][package] = ret
+    pmb.helpers.other.cache["find_aport"][package] = ret
     return ret
 
 
@@ -207,11 +207,11 @@ def get(args, pkgname, must_exist=True, subpackages=True):
     if subpackages:
         aport = find(args, pkgname, must_exist)
         if aport:
-            return pmb.parse.apkbuild(args, aport + "/APKBUILD")
+            return pmb.parse.apkbuild(f"{aport}/APKBUILD")
     else:
         path = _find_apkbuilds(args).get(pkgname)
         if path:
-            return pmb.parse.apkbuild(args, path)
+            return pmb.parse.apkbuild(path)
         if must_exist:
             raise RuntimeError("Could not find APKBUILD for package:"
                                f" {pkgname}")

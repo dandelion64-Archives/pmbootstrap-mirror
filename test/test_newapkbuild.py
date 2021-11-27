@@ -51,7 +51,7 @@ def test_newapkbuild(args, monkeypatch, tmpdir):
     pkgname = "testpackage"
     func(args, "main", [pkgname])
     apkbuild_path = tmpdir + "/main/" + pkgname + "/APKBUILD"
-    apkbuild = pmb.parse.apkbuild(args, apkbuild_path)
+    apkbuild = pmb.parse.apkbuild(apkbuild_path)
     assert apkbuild["pkgname"] == pkgname
     assert apkbuild["pkgdesc"] == ""
 
@@ -64,8 +64,8 @@ def test_newapkbuild(args, monkeypatch, tmpdir):
     monkeypatch.setattr(pmb.helpers.cli, "confirm", confirm_true)
     pkgdesc = "testdescription"
     func(args, "main", ["-d", pkgdesc, pkgname])
-    args.cache["apkbuild"] = {}
-    apkbuild = pmb.parse.apkbuild(args, apkbuild_path)
+    pmb.helpers.other.cache["apkbuild"] = {}
+    apkbuild = pmb.parse.apkbuild(apkbuild_path)
     assert apkbuild["pkgname"] == pkgname
     assert apkbuild["pkgdesc"] == pkgdesc
 

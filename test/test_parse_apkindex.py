@@ -176,8 +176,8 @@ def test_parse_add_block_multiple_providers(args):
                    "test_alias": {"test": block_new, "test2": block_test2}}
 
 
-def test_parse_invalid_path(args):
-    assert pmb.parse.apkindex.parse(args, "/invalid/path/APKINDEX") == {}
+def test_parse_invalid_path():
+    assert pmb.parse.apkindex.parse("/invalid/path/APKINDEX") == {}
 
 
 def test_parse_cached(args, tmpdir):
@@ -187,7 +187,7 @@ def test_parse_cached(args, tmpdir):
     lastmod = os.path.getmtime(path)
 
     # Fill the cache
-    args.cache["apkindex"][path] = {
+    pmb.helpers.other.cache["apkindex"][path] = {
         "lastmod": lastmod,
         "multiple": "cached_result_multiple",
         "single": "cached_result_single",
@@ -195,20 +195,20 @@ def test_parse_cached(args, tmpdir):
 
     # Verify cache usage
     func = pmb.parse.apkindex.parse
-    assert func(args, path, True) == "cached_result_multiple"
-    assert func(args, path, False) == "cached_result_single"
+    assert func(path, True) == "cached_result_multiple"
+    assert func(path, False) == "cached_result_single"
 
     # Make cache invalid
-    args.cache["apkindex"][path]["lastmod"] -= 10
-    assert func(args, path, True) == {}
+    pmb.helpers.other.cache["apkindex"][path]["lastmod"] -= 10
+    assert func(path, True) == {}
 
     # Delete the cache (run twice for both code paths)
-    assert pmb.parse.apkindex.clear_cache(args, path) is True
-    assert args.cache["apkindex"] == {}
-    assert pmb.parse.apkindex.clear_cache(args, path) is False
+    assert pmb.parse.apkindex.clear_cache(path) is True
+    assert pmb.helpers.other.cache["apkindex"] == {}
+    assert pmb.parse.apkindex.clear_cache(path) is False
 
 
-def test_parse(args):
+def test_parse():
     path = pmb.config.pmb_src + "/test/testdata/apkindex/no_error"
     block_musl = {'arch': 'x86_64',
                   'depends': [],
@@ -233,19 +233,21 @@ def test_parse(args):
                   'curl': block_curl,
                   'musl': block_musl,
                   'so:libc.musl-x86_64.so.1': block_musl}
-    assert pmb.parse.apkindex.parse(args, path, False) == ret_single
-    assert args.cache["apkindex"][path]["single"] == ret_single
+    assert pmb.parse.apkindex.parse(path, False) == ret_single
+    assert pmb.helpers.other.cache["apkindex"][path]["single"] == ret_single
 
     # Test with multiple_providers
     ret_multiple = {'cmd:curl': {"curl": block_curl},
                     'curl': {"curl": block_curl},
                     'musl': {"musl": block_musl},
                     'so:libc.musl-x86_64.so.1': {"musl": block_musl}}
-    assert pmb.parse.apkindex.parse(args, path, True) == ret_multiple
-    assert args.cache["apkindex"][path]["multiple"] == ret_multiple
+    assert pmb.parse.apkindex.parse(path, True) == ret_multiple
+    assert (
+        pmb.helpers.other.cache["apkindex"][path]["multiple"] == ret_multiple
+    )
 
 
-def test_parse_virtual(args):
+def test_parse_virtual():
     """
     This APKINDEX contains a virtual package .pbmootstrap. It must not be part
     of the output.
@@ -259,8 +261,8 @@ def test_parse_virtual(args):
              'timestamp': '1500000000',
              'version': '2-r0'}
     ret = {"hello-world": block, "cmd:hello-world": block}
-    assert pmb.parse.apkindex.parse(args, path, False) == ret
-    assert args.cache["apkindex"][path]["single"] == ret
+    assert pmb.parse.apkindex.parse(path, False) == ret
+    assert pmb.helpers.other.cache["apkindex"][path]["single"] == ret
 
 
 def test_providers_invalid_package(args, tmpdir):
@@ -288,7 +290,7 @@ def test_providers_highest_version(args, monkeypatch):
     which order the APKINDEX files are processed.
     """
     # Fake parse function
-    def return_fake_parse(args, path):
+    def return_fake_parse(path):
         version_mapping = {"i0": "2", "i1": "3", "i2": "1"}
         package_block = {"pkgname": "test", "version": version_mapping[path]}
         return {"test": {"test": package_block}}

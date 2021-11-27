@@ -26,7 +26,7 @@ def replace_apkbuild(args, pkgname, key, new, in_quotes=False):
         :param in_quotes: expect the value to be in quotation marks ("") """
     # Read old value
     path = pmb.helpers.pmaports.find(args, pkgname) + "/APKBUILD"
-    apkbuild = pmb.parse.apkbuild(args, path)
+    apkbuild = pmb.parse.apkbuild(path)
     old = apkbuild[key]
 
     # Prepare old/new strings
@@ -41,8 +41,8 @@ def replace_apkbuild(args, pkgname, key, new, in_quotes=False):
     replace(path, "\n" + line_old + "\n", "\n" + line_new + "\n")
 
     # Verify
-    del (args.cache["apkbuild"][path])
-    apkbuild = pmb.parse.apkbuild(args, path)
+    del (pmb.helpers.other.cache["apkbuild"][path])
+    apkbuild = pmb.parse.apkbuild(path)
     if apkbuild[key] != str(new):
         raise RuntimeError("Failed to set '{}' for pmaport '{}'. Make sure"
                            " that there's a line with exactly the string '{}'"
