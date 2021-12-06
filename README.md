@@ -14,6 +14,7 @@ Package build scripts live in the [`pmaports`](https://gitlab.com/postmarketOS/p
 * Python 3.6+
 * OpenSSL
 * git
+* sudo
 
 ## Usage Examples
 Please refer to the [postmarketOS wiki](https://wiki.postmarketos.org) for in-depth coverage of topics such as [porting to a new device](https://wiki.postmarketos.org/wiki/Porting_to_a_new_device) or [installation](https://wiki.postmarketos.org/wiki/Installation_guide). The help output (`pmbootstrap -h`) has detailed usage instructions for every command. Read on for some generic examples of what can be done with `pmbootstrap`.
