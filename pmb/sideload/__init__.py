@@ -34,6 +34,27 @@ def scp_abuild_key(args, user, host, port):
     pmb.helpers.run.user(args, command, output="tui")
 
 
+def ssh_del_apks(args, user, host, port, pkgnames):
+    """ Uninstall packages before installing them again.
+        :param user: target device ssh username
+        :param host: target device ssh hostname
+        :param port: target device ssh port
+        :param pkgnames: list of packages to delete
+        :type pkgnames: list """
+
+    pkgs = ""
+    for pkg in pkgnames:
+        pkgs += pkg + " "
+
+    logging.info("Deleting packages " + pkgs + "to force re-install")
+    del_cmd = ['sudo', '-p', pmb.config.sideload_sudo_prompt,
+               '-S', 'apk', 'del'] + pkgnames
+    del_cmd = pmb.helpers.run.flat_cmd(del_cmd)
+    command = ['ssh', '-t', '-p', port, f'{user}@{host}',
+               f'{del_cmd}']
+    pmb.helpers.run.user(args, command, output="tui")
+
+
 def ssh_install_apks(args, user, host, port, paths):
     """ Copy binary packages via SCP and install them via SSH.
         :param user: target device ssh username
@@ -60,7 +81,7 @@ def ssh_install_apks(args, user, host, port, paths):
     pmb.helpers.run.user(args, command, output="tui")
 
 
-def sideload(args, user, host, port, arch, copy_key, pkgnames):
+def sideload(args, user, host, port, arch, copy_key, reinstall, pkgnames):
     """ Build packages if necessary and install them via SSH.
 
         :param user: target device ssh username
@@ -68,6 +89,7 @@ def sideload(args, user, host, port, arch, copy_key, pkgnames):
         :param port: target device ssh port
         :param arch: target device architecture
         :param copy_key: copy the abuild key too
+        :param reinstall: remove packages before sideloading them
         :param pkgnames: list of pkgnames to be built """
 
     paths = []
@@ -88,5 +110,8 @@ def sideload(args, user, host, port, arch, copy_key, pkgnames):
 
     if copy_key:
         scp_abuild_key(args, user, host, port)
+
+    if reinstall:
+        ssh_del_apks(args, user, host, port, pkgnames)
 
     ssh_install_apks(args, user, host, port, paths)
