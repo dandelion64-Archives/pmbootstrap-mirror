@@ -456,6 +456,8 @@ def arguments_kconfig(subparser):
                        help="check options needed for containers too")
     check.add_argument("--zram", action="store_true", help="check"
                        " options needed for zram support too")
+    check.add_argument("--netboot", action="store_true", help="check"
+                       " options needed for netboooting too")
     add_kernel_arg(check)
 
     # "pmbootstrap kconfig edit"
@@ -505,6 +507,19 @@ def arguments_status(subparser):
                                help="quick health check for the work dir")
     ret.add_argument("--details", action="store_true",
                      help="list passing checks in detail, not as summary")
+    return ret
+
+
+def arguments_netboot(subparser):
+    ret = subparser.add_parser("netboot",
+                               help="launch nbd server with pmOS rootfs")
+    sub = ret.add_subparsers(dest="action_netboot")
+    sub.required = True
+
+    start = sub.add_parser("serve", help="start nbd server")
+    start.add_argument("--replace", action="store_true",
+                       help="replace stored netboot image")
+
     return ret
 
 
@@ -646,6 +661,7 @@ def arguments():
     arguments_kconfig(sub)
     arguments_export(sub)
     arguments_sideload(sub)
+    arguments_netboot(sub)
     arguments_flasher(sub)
     arguments_initfs(sub)
     arguments_qemu(sub)
@@ -682,6 +698,8 @@ def arguments():
                      dest="pkgs_local_mismatch",
                      help="also delete locally compiled packages without"
                      " existing aport of same version")
+    zap.add_argument("-n", "--netboot", action="store_true",
+                     help="also delete stored images for netboot")
     zap.add_argument("-o", "--pkgs-online-mismatch", action="store_true",
                      dest="pkgs_online_mismatch",
                      help="also delete outdated packages from online mirrors"

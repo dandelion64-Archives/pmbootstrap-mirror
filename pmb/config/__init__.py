@@ -210,6 +210,7 @@ chroot_mount_bind = {
     "$WORK/cache_rust": "/mnt/pmbootstrap-rust",
     "$WORK/config_abuild": "/mnt/pmbootstrap-abuild-config",
     "$WORK/config_apk_keys": "/etc/apk/keys",
+    "$WORK/images_netboot": "/mnt/pmbootstrap-netboot",
     "$WORK/packages/$CHANNEL": "/mnt/pmbootstrap-packages",
 }
 
@@ -558,6 +559,15 @@ necessary_kconfig_options_zram = {
             "CRYPTO_LZ4": True,
             "LZ4_COMPRESS": True,
             "SWAP": True,
+        }
+    },
+}
+
+# Necessary netboot kernel config options
+necessary_kconfig_options_netboot = {
+    ">=0.0.0": {  # all versions
+        "all": {  # all arches
+            "BLK_DEV_NBD": True,
         }
     },
 }

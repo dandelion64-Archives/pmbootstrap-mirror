@@ -29,6 +29,7 @@ import pmb.helpers.aportupgrade
 import pmb.helpers.status
 import pmb.install
 import pmb.install.blockdevice
+import pmb.netboot
 import pmb.parse
 import pmb.qemu
 
@@ -138,6 +139,11 @@ def sideload(args):
     host = args.host
     pmb.sideload.sideload(args, user, host, args.port, arch, args.install_key,
                           args.packages)
+
+
+def netboot(args):
+    if args.action_netboot == "serve":
+        pmb.netboot.start_nbd_server(args)
 
 
 def chroot(args):
@@ -373,6 +379,7 @@ def kconfig(args):
                                             nftables=args.nftables,
                                             containers=args.containers,
                                             zram=args.zram,
+                                            netboot=args.netboot,
                                             details=True):
                 logging.info("kconfig check succeeded!")
                 return
@@ -408,6 +415,7 @@ def kconfig(args):
                     force_nftables_check=args.nftables,
                     force_containers_check=args.containers,
                     force_zram_check=args.zram,
+                    force_netboot_check=args.netboot,
                     details=True):
                 error = True
 
@@ -543,7 +551,7 @@ def zap(args):
                    distfiles=args.distfiles, pkgs_local=args.pkgs_local,
                    pkgs_local_mismatch=args.pkgs_local_mismatch,
                    pkgs_online_mismatch=args.pkgs_online_mismatch,
-                   rust=args.rust)
+                   rust=args.rust, netboot=args.netboot)
 
     # Don't write the "Done" message
     pmb.helpers.logging.disable()
