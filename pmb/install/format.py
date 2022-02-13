@@ -13,15 +13,15 @@ def install_fsprogs(args, filesystem):
     pmb.chroot.apk.install(args, [fsprogs])
 
 
-def format_and_mount_boot(args, boot_label):
+def format_and_mount_boot(args, device, boot_label):
     """
+    :param device: root partition on install block device (e.g. /dev/installp1)
     :param boot_label: label of the root partition (e.g. "pmOS_boot")
 
     When adjusting this function, make sure to also adjust
     ondev-prepare-internal-storage.sh in postmarketos-ondev.git!
     """
     mountpoint = "/mnt/install/boot"
-    device = "/dev/installp1"
     filesystem = args.deviceinfo["boot_filesystem"] or "ext2"
     install_fsprogs(args, filesystem)
     logging.info(f"(native) format {device} (boot, {filesystem}), mount to"
@@ -125,18 +125,24 @@ def format_and_mount_root(args, device, root_label, sdcard):
     pmb.chroot.root(args, ["mount", device, mountpoint])
 
 
-def format(args, size_reserve, boot_label, root_label, sdcard):
+def format(args, size_reserve, boot_label, root_label, sdcard, towboot):
     """
     :param size_reserve: empty partition between root and boot in MiB (pma#463)
     :param boot_label: label of the boot partition (e.g. "pmOS_boot")
     :param root_label: label of the root partition (e.g. "pmOS_root")
     :param sdcard: path to sdcard device (e.g. /dev/mmcblk0) or None
+    :param tow_boot: true if tow-boot is present on the install location,
+    false if not
     """
-    root_dev = "/dev/installp3" if size_reserve else "/dev/installp2"
+    if size_reserve or towboot:
+        root_dev = "/dev/installp3"
+    else:
+        root_dev = "/dev/installp2"
+    boot_dev = "/dev/installp2" if towboot else "/dev/installp1"
 
     if args.full_disk_encryption:
         format_luks_root(args, root_dev)
         root_dev = "/dev/mapper/pm_crypt"
 
     format_and_mount_root(args, root_dev, root_label, sdcard)
-    format_and_mount_boot(args, boot_label)
+    format_and_mount_boot(args, boot_dev, boot_label)

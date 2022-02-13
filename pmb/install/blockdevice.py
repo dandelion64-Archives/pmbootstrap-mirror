@@ -9,7 +9,7 @@ import pmb.helpers.cli
 import pmb.config
 
 
-def previous_install(args, path):
+def has_previous_install(args, path):
     """
     Search the sdcard for possible existence of a previous installation of
     pmOS. We temporarily mount the possible pmOS_boot partition as
@@ -38,6 +38,25 @@ def previous_install(args, path):
     return "pmOS_boot" in label
 
 
+def has_tow_shared_storage(args, path):
+    """
+    Check if the sdcard has a gpt partition table with a tow-boot partition
+    """
+    blockdevice_outside = path
+    blockdevice_inside = "/dev/sdcard"
+    pmb.helpers.mount.bind_file(args, blockdevice_outside,
+                                args.work + '/chroot_native' +
+                                blockdevice_inside)
+    try:
+        findtow = pmb.chroot.root(args, ["findtow", "--device",
+                                         blockdevice_inside],
+                                  check=False, output_return=False)
+    finally:
+        pmb.helpers.run.root(args, ["umount", args.work + "/chroot_native" +
+                                    blockdevice_inside])
+    return findtow == 0
+
+
 def mount_sdcard(args, path):
     """
     :param path: path to sdcard device (e.g. /dev/mmcblk0)
@@ -55,14 +74,18 @@ def mount_sdcard(args, path):
     logging.info(f"(native) mount /dev/install (host: {path})")
     pmb.helpers.mount.bind_file(args, path,
                                 args.work + "/chroot_native/dev/install")
-    if previous_install(args, path):
+    if has_previous_install(args, path):
         if not pmb.helpers.cli.confirm(args, "WARNING: This device has a"
-                                       " previous installation of pmOS."
-                                       " CONTINUE?"):
+                                             " previous installation of pmOS."
+                                             " CONTINUE?"):
+            raise RuntimeError("Aborted.")
+    elif has_tow_shared_storage(args, path):
+        if not pmb.helpers.cli.confirm(args, "The target has tow-boot shared"
+                                             " storage! continue?"):
             raise RuntimeError("Aborted.")
     else:
         if not pmb.helpers.cli.confirm(args, f"EVERYTHING ON {path} WILL BE"
-                                       " ERASED! CONTINUE?"):
+                                             " ERASED! CONTINUE?"):
             raise RuntimeError("Aborted.")
 
 
@@ -95,7 +118,7 @@ def create_and_mount_image(args, size_boot, size_root, size_reserve,
     # Make sure there is enough free space
     size_mb = round(size_boot + size_reserve + size_root)
     disk_data = os.statvfs(args.work)
-    free = round((disk_data.f_bsize * disk_data.f_bavail) / (1024**2))
+    free = round((disk_data.f_bsize * disk_data.f_bavail) / (1024 ** 2))
     if size_mb > free:
         raise RuntimeError("Not enough free space to create rootfs image! "
                            f"(free: {free}M, required: {size_mb}M)")

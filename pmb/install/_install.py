@@ -625,16 +625,28 @@ def install_system_image(args, size_reserve, suffix, step, steps,
     logging.info(f"*** ({step}/{steps}) PREPARE INSTALL BLOCKDEVICE ***")
     pmb.chroot.shutdown(args, True)
     (size_boot, size_root) = get_subpartitions_size(args, suffix)
+
+    code = pmb.chroot.root(args, ["findtow", "--device", "/dev/install"],
+                           check=False, output_return=False)
+    found_towboot = code == 0
+    if found_towboot:
+        logging.debug("Found tow-boot shared storage on target device")
+    else:
+        logging.debug("Target device does not have tow-boot shared"
+                      " storage partitions")
+
     if not args.rsync:
         pmb.install.blockdevice.create(args, size_boot, size_root,
                                        size_reserve, split, sdcard)
         if not split:
-            pmb.install.partition(args, size_boot, size_reserve)
+            pmb.install.partition(args, size_boot, size_reserve, found_towboot)
     if not split:
-        root_id = 3 if size_reserve else 2
-        pmb.install.partitions_mount(args, root_id, sdcard)
+        root_id = 3 if size_reserve or found_towboot else 2
+        boot_id = 2 if found_towboot else 1
+        pmb.install.partitions_mount(args, root_id, sdcard, boot_id)
 
-    pmb.install.format(args, size_reserve, boot_label, root_label, sdcard)
+    pmb.install.format(args, size_reserve, boot_label, root_label, sdcard,
+                       found_towboot)
 
     # Just copy all the files
     logging.info(f"*** ({step + 1}/{steps}) FILL INSTALL BLOCKDEVICE ***")
