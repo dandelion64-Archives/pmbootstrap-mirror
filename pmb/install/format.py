@@ -13,15 +13,15 @@ def install_fsprogs(args, filesystem):
     pmb.chroot.apk.install(args, [fsprogs])
 
 
-def format_and_mount_boot(args, boot_label):
+def format_and_mount_boot(args, device, boot_label):
     """
+    :param device: boot partition on install block device (e.g. /dev/installp1)
     :param boot_label: label of the root partition (e.g. "pmOS_boot")
 
     When adjusting this function, make sure to also adjust
     ondev-prepare-internal-storage.sh in postmarketos-ondev.git!
     """
     mountpoint = "/mnt/install/boot"
-    device = "/dev/installp1"
     filesystem = args.deviceinfo["boot_filesystem"] or "ext2"
     install_fsprogs(args, filesystem)
     logging.info(f"(native) format {device} (boot, {filesystem}), mount to"
@@ -125,18 +125,19 @@ def format_and_mount_root(args, device, root_label, sdcard):
     pmb.chroot.root(args, ["mount", device, mountpoint])
 
 
-def format(args, size_reserve, boot_label, root_label, sdcard):
+def format(args, layout, boot_label, root_label, sdcard):
     """
-    :param size_reserve: empty partition between root and boot in MiB (pma#463)
+    :param layout: partition layout from get_partition_layout()
     :param boot_label: label of the boot partition (e.g. "pmOS_boot")
     :param root_label: label of the root partition (e.g. "pmOS_root")
     :param sdcard: path to sdcard device (e.g. /dev/mmcblk0) or None
     """
-    root_dev = "/dev/installp3" if size_reserve else "/dev/installp2"
+    root_dev = f"/dev/installp{layout['root']}"
+    boot_dev = f"/dev/installp{layout['boot']}"
 
     if args.full_disk_encryption:
         format_luks_root(args, root_dev)
         root_dev = "/dev/mapper/pm_crypt"
 
     format_and_mount_root(args, root_dev, root_label, sdcard)
-    format_and_mount_boot(args, boot_label)
+    format_and_mount_boot(args, boot_dev, boot_label)
