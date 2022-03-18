@@ -38,8 +38,15 @@ def test_kconfig_check(args):
                                             nftables=True)
     assert pmb.parse.kconfig.check_file(dir + "good-zram",
                                         zram=True)
+    assert pmb.parse.kconfig.check_file(dir + "good-uefi",
+                                        uefi=True)
+    assert not pmb.parse.kconfig.check_file(dir + "bad-uefi",
+                                            uefi=True)
 
     # tests on real devices
+    # *** do not add more of these! ***
+    # moving forward, tests in pmbootstrap.git should become more/completely
+    # independent of the currently checked out pmaports.git (#2105)
 
     # it's a postmarketOS device, it will have the required options, and
     # supports nftables (with pmb:kconfigcheck-nftables)
