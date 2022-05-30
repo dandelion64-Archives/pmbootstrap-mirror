@@ -87,166 +87,110 @@ def check_min_version(args, suffix="native"):
     pmb.helpers.other.cache["apk_min_version_checked"].append(suffix)
 
 
-def install_is_necessary(args, build, arch, package, packages_installed):
+def install_build(args, package, arch):
     """
-    This function optionally builds an out of date package, and checks if the
-    version installed inside a chroot is up to date.
-    :param build: Set to true to build the package, if the binary packages are
-                  out of date, and it is in the aports folder.
-    :param packages_installed: Return value from installed().
-    :returns: True if the package needs to be installed/updated,
-              False otherwise.
-    """
-    # For packages to be removed we can do the test immediately
-    if package.startswith("!"):
-        return package[1:] in packages_installed
+    Build an outdated package unless pmbootstrap was invoked with
+    "pmbootstrap install" and the option to build packages during pmb install
+    is disabled.
 
-    # User may have disabled buiding packages during "pmbootstrap install"
-    build_disabled = False
+    :param package: name of the package to build
+    :param arch: architecture of the package to build
+    """
+    # User may have disabled building packages during "pmbootstrap install"
     if args.action == "install" and not args.build_pkgs_on_install:
-        build_disabled = True
-
-    # Build package
-    if build and not build_disabled:
-        pmb.build.package(args, package, arch)
-
-    # No further checks when not installed
-    if package not in packages_installed:
-        return True
-
-    # Make sure that we really have a binary package
-    data_repo = pmb.parse.apkindex.package(args, package, arch, False)
-    if not data_repo:
-        if build_disabled:
+        if not pmb.parse.apkindex.package(args, package, arch, False):
             raise RuntimeError(f"{package}: no binary package found for"
                                f" {arch}, and compiling packages during"
                                " 'pmbootstrap install' has been disabled."
                                " Consider changing this option in"
                                " 'pmbootstrap init'.")
-        logging.warning("WARNING: Internal error in pmbootstrap,"
-                        f" package '{package}' for {arch}"
-                        " has not been built yet, but it should have"
-                        " been. Rebuilding it with force. Please "
-                        " report this, if there is no ticket about this"
-                        " yet!")
-        pmb.build.package(args, package, arch, True)
-        return install_is_necessary(args, build, arch, package,
-                                    packages_installed)
+        # Use the existing binary package
+        return
 
-    # Compare the installed version vs. the version in the repos
-    data_installed = packages_installed[package]
-    compare = pmb.parse.version.compare(data_installed["version"],
-                                        data_repo["version"])
-    # a) Installed newer (should not happen normally)
-    if compare == 1:
-        logging.info(f"WARNING: {arch} package '{package}'"
-                     f" installed version {data_installed['version']}"
-                     " is newer, than the version in the repositories:"
-                     f" {data_repo['version']}"
-                     " See also: <https://postmarketos.org/warning-repo>")
-        return False
-
-    # b) Repo newer
-    elif compare == -1:
-        return True
-
-    # c) Same version, look at last modified
-    elif compare == 0:
-        time_installed = float(data_installed["timestamp"])
-        time_repo = float(data_repo["timestamp"])
-        return time_repo > time_installed
+    # Build the package if it's in pmaports and there is no binary package
+    # with the same pkgver and pkgrel. This check is done in
+    # pmb.build.is_necessary, which gets called in pmb.build.package.
+    return pmb.build.package(args, package, arch)
 
 
-def replace_aports_packages_with_path(args, packages, suffix, arch):
+def packages_split_to_add_del(packages):
     """
-    apk will only re-install packages with the same pkgname,
-    pkgver and pkgrel, when you give it the absolute path to the package.
-    This function replaces all packages that were built locally,
-    with the absolute path to the package.
+    Sort packages into "to_add" and "to_del" lists depending on their pkgname
+    starting with an exclamation mark.
+
+    :param packages: list of pkgnames
+    :returns: (to_add, to_del) - tuple of lists of pkgnames, e.g.
+              (["hello-world", ...], ["some-conflict-pkg", ...])
     """
-    ret = []
+    to_add = []
+    to_del = []
+
     for package in packages:
-        aport = pmb.helpers.pmaports.find(args, package, False)
-        if aport:
-            data_repo = pmb.parse.apkindex.package(args, package, arch, False)
-            if not data_repo:
-                raise RuntimeError(f"{package}: could not find binary"
-                                   " package, although it should exist for"
-                                   " sure at this point in the code."
-                                   " Probably an APKBUILD subpackage parsing"
-                                   " bug. Related: https://gitlab.com/"
-                                   "postmarketOS/build.postmarketos.org/"
-                                   "issues/61")
-            apk_path = (f"/mnt/pmbootstrap-packages/{arch}/"
-                        f"{package}-{data_repo['version']}.apk")
-            if os.path.exists(f"{args.work}/chroot_{suffix}{apk_path}"):
-                package = apk_path
-        ret.append(package)
+        if package.startswith("!"):
+            to_del.append(package.lstrip("!"))
+        else:
+            to_add.append(package)
+
+    return (to_add, to_del)
+
+
+def packages_get_locally_built_apks(args, packages, arch):
+    """
+    Iterate over packages and if existing, get paths to locally built packages.
+    This is used to force apk to upgrade packages to newer local versions, even
+    if the pkgver and pkgrel did not change.
+
+    :param packages: list of pkgnames
+    :param arch: architecture that the locally built packages should have
+    :returns: list of apk file paths that are valid inside the chroots, e.g.
+              ["/mnt/pmbootstrap-packages/x86_64/hello-world-1-r6.apk", ...]
+    """
+    channel = pmb.config.pmaports.read_config(args)["channel"]
+    ret = []
+
+    for package in packages:
+        data_repo = pmb.parse.apkindex.package(args, package, arch, False)
+        if not data_repo:
+            continue
+
+        apk_file = f"{package}-{data_repo['version']}.apk"
+        if not os.path.exists(f"{args.work}/packages/{channel}/{arch}/{apk_file}"):
+            continue
+
+        ret.append(f"/mnt/pmbootstrap-packages/{arch}/{apk_file}")
+
     return ret
 
 
-def install(args, packages, suffix="native", build=True):
+def install_run_apk(args, to_add, to_add_local, to_del, suffix):
     """
-    :param build: automatically build the package, when it does not exist yet
-                  or needs to be updated, and it is inside the pm-aports
-                  folder. Checking this is expensive - if you know that all
-                  packages are provides by upstream repos, set this to False!
+    Run apk to add packages, and ensure only the desired packages get
+    explicitly marked as installed.
+
+    :param to_add: list of pkgnames to install, without their dependencies
+    :param to_add_local: return of packages_get_locally_built_apks()
+    :param to_del: list of pkgnames to be deleted, this should be set to
+                   conflicting dependencies in any of the packages to be
+                   installed or their dependencies (e.g. ["osk-sdl"])
+    :param suffix: the chroot suffix, e.g. "native" or "rootfs_qemu-amd64"
     """
-    # Initialize chroot
-    check_min_version(args, suffix)
-    pmb.chroot.init(args, suffix)
-
-    # Add depends to packages
-    arch = pmb.parse.arch.from_chroot_suffix(args, suffix)
-    packages_with_depends = pmb.parse.depends.recurse(args, packages, suffix)
-
-    # Filter outdated packages (build them if required)
-    packages_installed = installed(args, suffix)
-    packages_toadd = []
-    packages_todel = []
-    for package in packages_with_depends:
-        if not install_is_necessary(
-                args, build, arch, package, packages_installed):
-            continue
-        if package.startswith("!"):
-            packages_todel.append(package.lstrip("!"))
-        else:
-            packages_toadd.append(package)
-    if not len(packages_toadd) and not len(packages_todel):
-        return
-
     # Sanitize packages: don't allow '--allow-untrusted' and other options
     # to be passed to apk!
-    for package in packages_toadd + packages_todel:
+    for package in to_add + to_add_local + to_del:
         if package.startswith("-"):
             raise ValueError(f"Invalid package name: {package}")
 
-    # Readable install message without dependencies
-    message = f"({suffix}) install"
-    for pkgname in packages:
-        if pkgname not in packages_installed:
-            message += f" {pkgname}"
-    logging.info(message)
-
-    # Local packages: Using the path instead of pkgname makes apk update
-    # packages of the same version if the build date is different
-    packages_toadd = replace_aports_packages_with_path(args, packages_toadd,
-                                                       suffix, arch)
-
-    # Split off conflicts
-    packages_without_conflicts = list(
-        filter(lambda p: not p.startswith("!"), packages))
+    commands = [["add"] + to_add]
 
     # Use a virtual package to mark only the explicitly requested packages as
-    # explicitly installed, not their dependencies or specific paths (#1212)
-    commands = [["add"] + packages_without_conflicts]
-    if len(packages_toadd) and packages_without_conflicts != packages_toadd:
-        commands = [["add", "-u", "--virtual", ".pmbootstrap"] +
-                    packages_toadd,
-                    ["add"] + packages_without_conflicts,
-                    ["del", ".pmbootstrap"]]
-    if len(packages_todel):
-        commands.append(["del"] + packages_todel)
+    # explicitly installed, not the ones in to_add_local
+    if to_add_local:
+        commands += [["add", "-u", "--virtual", ".pmbootstrap"] + to_add_local,
+                     ["del", ".pmbootstrap"]]
+
+    if to_del:
+        commands += [["del"] + to_del]
+
     for (i, command) in enumerate(commands):
         if args.offline:
             command = ["--no-network"] + command
@@ -259,6 +203,44 @@ def install(args, packages, suffix="native", build=True):
             # They finish up almost instantly, so don't display a progress bar.
             pmb.chroot.root(args, ["apk", "--no-progress"] + command,
                             suffix=suffix)
+
+
+def install(args, packages, suffix="native", build=True):
+    """
+    Install packages from pmbootstrap's local package index or the pmOS/Alpine
+    binary package mirrors. Iterate over all dependencies recursively, and
+    build missing packages as necessary.
+
+    :param packages: list of pkgnames to be installed
+    :param suffix: the chroot suffix, e.g. "native" or "rootfs_qemu-amd64"
+    :param build: automatically build the package, when it does not exist yet
+                  or needs to be updated, and it is inside pmaports. For the
+                  special case that all packages are expected to be in Alpine's
+                  repositories, set this to False for performance optimization.
+    """
+    arch = pmb.parse.arch.from_chroot_suffix(args, suffix)
+
+    if not packages:
+        logging.verbose("pmb.chroot.apk.install called with empty packages list,"
+                        " ignoring")
+        return
+
+    # Initialize chroot
+    check_min_version(args, suffix)
+    pmb.chroot.init(args, suffix)
+
+    packages_with_depends = pmb.parse.depends.recurse(args, packages, suffix)
+    to_add, to_del = packages_split_to_add_del(packages_with_depends)
+
+    if build:
+        for package in to_add:
+            install_build(args, package, arch)
+
+    to_add_local = packages_get_locally_built_apks(args, to_add, arch)
+    to_add_no_deps, _ = packages_split_to_add_del(packages)
+
+    logging.info(f"({suffix}) install {' '.join(to_add_no_deps)}")
+    install_run_apk(args, to_add_no_deps, to_add_local, to_del, suffix)
 
 
 def installed(args, suffix="native"):
