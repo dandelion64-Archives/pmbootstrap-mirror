@@ -87,7 +87,6 @@ def clean_worktree(args, path):
     command = ["git", "status", "--porcelain"]
     return pmb.helpers.run.user(args, command, path, output_return=True) == ""
 
-
 def get_upstream_remote(args, name_repo):
     """ Find the remote, which matches the git URL from the config. Usually
         "origin", but the user may have set up their git repository
@@ -107,7 +106,7 @@ def get_upstream_remote(args, name_repo):
 
 
 def parse_channels_cfg(args):
-    """ Parse channels.cfg from pmaports.git, origin/master branch.
+    """ Parse channels.cfg from pmaports.git.
         Reference: https://postmarketos.org/channels.cfg
         :returns: dict like: {"meta": {"recommended": "edge"},
                               "channels": {"edge": {"description": ...,
@@ -126,7 +125,14 @@ def parse_channels_cfg(args):
         cfg.read([args.config_channels])
     else:
         remote = get_upstream_remote(args, "pmaports")
-        command = ["git", "show", f"{remote}/master:channels.cfg"]
+        cfg = pmb.config.load(args)
+        url = cfg["git_repos"][name_repo]
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
+        else:
+            branch = "master"
+        branch = get_branch(args, "pmaports")
+        command = ["git", "show", f"{remote}/{branch}:channels.cfg"]
         stdout = pmb.helpers.run.user(args, command, args.aports,
                                       output_return=True, check=False)
         try:
@@ -135,7 +141,7 @@ def parse_channels_cfg(args):
             logging.info("NOTE: fix this by fetching your pmaports.git, e.g."
                          " with 'pmbootstrap pull'")
             raise RuntimeError("Failed to read channels.cfg from"
-                               f" '{remote}/master' branch of your local"
+                               f" '{remote}/{branch}' branch of your local"
                                " pmaports clone")
 
     # Meta section
