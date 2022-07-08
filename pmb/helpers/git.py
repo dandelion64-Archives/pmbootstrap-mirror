@@ -125,13 +125,12 @@ def parse_channels_cfg(args):
         cfg.read([args.config_channels])
     else:
         remote = get_upstream_remote(args, "pmaports")
-        cfg = pmb.config.load(args)
-        url = cfg["git_repos"][name_repo]
+        cfg_temp = pmb.config.load(args)
+        url = cfg_temp["git_repos"][name_repo]
         if "#branch=" in url:
             url, branch = url.split("#branch=")
         else:
             branch = "master"
-        branch = get_branch(args, "pmaports")
         command = ["git", "show", f"{remote}/{branch}:channels.cfg"]
         stdout = pmb.helpers.run.user(args, command, args.aports,
                                       output_return=True, check=False)
