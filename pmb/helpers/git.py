@@ -27,18 +27,18 @@ def clone(args, name_repo):
         overridden path set in args, as with pmbootstrap --aports).
 
         :param name_repo: short alias used for the repository name, from
-                          pmb.config.git_repos (e.g. "aports_upstream",
+                          pmb.config.git_repos_default (e.g. "aports_upstream",
                           "pmaports") """
     # Check for repo name in the config
     cfg = pmb.config.load(args)
 
-    if name_repo not in cfg["pmbootstrap"]["git_repos"]:
+    if name_repo not in cfg["git_repos"]:
         raise ValueError("No git repository configured for " + name_repo)
 
     path = get_path(args, name_repo)
     if not os.path.exists(path):
         # Build git command
-        url = cfg["pmbootstrap"]["git_repos"][name_repo]
+        url = cfg["git_repos"][name_repo]
         command = ["git", "clone"]
         command += [url, path]
 
@@ -90,7 +90,7 @@ def get_upstream_remote(args, name_repo):
         "origin", but the user may have set up their git repository
         differently. """
     cfg = pmb.config.load(args)
-    url = cfg["pmbootstrap"]["git_repos"][name_repo]
+    url = cfg["git_repos"][name_repo]
     path = get_path(args, name_repo)
     command = ["git", "remote", "-v"]
     output = pmb.helpers.run.user(args, command, path, output_return=True)

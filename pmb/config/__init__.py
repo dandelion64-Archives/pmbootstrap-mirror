@@ -61,7 +61,6 @@ config_keys = ["aports",
                "extra_packages",
                "hostname",
                "build_pkgs_on_install",
-               "git_repos",
                "is_default_channel",
                "jobs",
                "kernel",
@@ -98,8 +97,6 @@ defaults = {
     "fork_alpine": False,
     "hostname": "",
     "build_pkgs_on_install": True,
-    "git_repos": {"aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
-                  "pmaports": "https://gitlab.com/postmarketOS/pmaports.git"},
     # A higher value is typically desired, but this can lead to VERY long open
     # times on slower devices due to host systems being MUCH faster than the
     # target device (see issue #429).
@@ -129,6 +126,12 @@ defaults = {
     "qemu_redir_stdio": False
 }
 
+git_repos_config_keys = ["aports_upstream",
+                         "pmaports"]
+
+git_repos_defaults = {
+    "aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
+    "pmaports": "https://gitlab.com/postmarketOS/pmaports.git"}
 
 # Whether we're connected to a TTY (which allows things like e.g. printing
 # progress bars)

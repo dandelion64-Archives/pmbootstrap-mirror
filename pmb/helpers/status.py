@@ -107,7 +107,7 @@ def print_checks_git_repos(args, details):
         :returns: list of unresolved checklist items """
     ret = []
     cfg = pmb.config.load(args)
-    for repo in cfg["pmbootstrap"]["git_repos"].keys():
+    for repo in cfg["git_repos"].keys():
         path = pmb.helpers.git.get_path(args, repo)
         if not os.path.exists(path):
             continue
