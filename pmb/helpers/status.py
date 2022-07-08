@@ -27,7 +27,8 @@ def print_config(args):
 def print_git_repos(args):
     logging.info("*** GIT REPOS ***")
     logging.info("Path: {}/cache_git".format(args.work))
-    for repo in pmb.config.git_repos.keys():
+    cfg = pmb.config.load()
+    for repo in cfg["git_repos"].keys():
         path = pmb.helpers.git.get_path(args, repo)
         if not os.path.exists(path):
             continue
@@ -105,7 +106,8 @@ def print_checks_git_repos(args, details):
         :param details: if True, print each passing check
         :returns: list of unresolved checklist items """
     ret = []
-    for repo in pmb.config.git_repos.keys():
+    cfg = pmb.config.load()
+    for repo in cfg["git_repos"].keys():
         path = pmb.helpers.git.get_path(args, repo)
         if not os.path.exists(path):
             continue
