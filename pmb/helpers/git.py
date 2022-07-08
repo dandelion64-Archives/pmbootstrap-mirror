@@ -21,7 +21,6 @@ def get_path(args, name_repo):
         return args.aports
     return args.work + "/cache_git/" + name_repo
 
-
 def clone(args, name_repo, branch=""):
     """ Clone a git repository to $WORK/cache_git/$name_repo (or to the
         overridden path set in args, as with pmbootstrap --aports).
@@ -126,7 +125,7 @@ def parse_channels_cfg(args):
     else:
         remote = get_upstream_remote(args, "pmaports")
         cfg_temp = pmb.config.load(args)
-        url = cfg_temp["git_repos"][name_repo]
+        url = cfg_temp["git_repos"]["pmaports"]
         if "#branch=" in url:
             url, branch = url.split("#branch=")
         else:
