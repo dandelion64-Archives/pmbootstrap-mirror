@@ -38,7 +38,7 @@ def clone(args, name_repo):
     path = get_path(args, name_repo)
     if not os.path.exists(path):
         # Build git command
-        url = cfg["git_repos"][name_repo]
+        url = cfg["pmbootstrap"]["git_repos"][name_repo]
         command = ["git", "clone"]
         command += [url, path]
 
@@ -90,7 +90,7 @@ def get_upstream_remote(args, name_repo):
         "origin", but the user may have set up their git repository
         differently. """
     cfg = pmb.config.load(args)
-    url = cfg["git_repos"][name_repo]
+    url = cfg["pmbootstrap"]["git_repos"][name_repo]
     path = get_path(args, name_repo)
     command = ["git", "remote", "-v"]
     output = pmb.helpers.run.user(args, command, path, output_return=True)
