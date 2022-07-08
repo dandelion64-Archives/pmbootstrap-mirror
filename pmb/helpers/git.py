@@ -30,7 +30,7 @@ def clone(args, name_repo):
                           pmb.config.git_repos (e.g. "aports_upstream",
                           "pmaports") """
     # Check for repo name in the config
-    cfg = pmb.config.load()
+    cfg = pmb.config.load(args)
 
     if name_repo not in cfg["git_repos"]:
         raise ValueError("No git repository configured for " + name_repo)
@@ -89,7 +89,7 @@ def get_upstream_remote(args, name_repo):
     """ Find the remote, which matches the git URL from the config. Usually
         "origin", but the user may have set up their git repository
         differently. """
-    cfg = pmb.config.load()
+    cfg = pmb.config.load(args)
     url = cfg["git_repos"][name_repo]
     path = get_path(args, name_repo)
     command = ["git", "remote", "-v"]

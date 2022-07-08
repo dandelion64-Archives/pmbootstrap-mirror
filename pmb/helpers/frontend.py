@@ -574,7 +574,7 @@ def bootimg_analyze(args):
 
 def pull(args):
     failed = []
-    cfg = pmb.config.load()
+    cfg = pmb.config.load(args)
     for repo in cfg["git_repos"].keys():
         if pmb.helpers.git.pull(args, repo) < 0:
             failed.append(repo)
