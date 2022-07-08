@@ -32,7 +32,7 @@ def clone(args, name_repo):
     # Check for repo name in the config
     cfg = pmb.config.load(args)
 
-    if name_repo not in cfg["git_repos"]:
+    if name_repo not in cfg["pmbootstrap"]["git_repos"]:
         raise ValueError("No git repository configured for " + name_repo)
 
     path = get_path(args, name_repo)
