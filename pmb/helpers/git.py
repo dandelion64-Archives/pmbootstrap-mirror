@@ -98,6 +98,8 @@ def get_upstream_remote(args, name_repo):
     command = ["git", "remote", "-v"]
     output = pmb.helpers.run.user(args, command, path, output_return=True)
     for line in output.split("\n"):
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
         if url in line:
             return line.split("\t", 1)[0]
     raise RuntimeError("{}: could not find remote name for URL '{}' in git"
