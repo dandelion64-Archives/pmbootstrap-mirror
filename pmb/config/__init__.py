@@ -127,7 +127,8 @@ defaults = {
 }
 
 git_repos_config_keys = ["aports_upstream",
-                         "pmaports"]
+                         "pmaports",
+                         "test"]
 
 git_repos_defaults = {
     "aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
