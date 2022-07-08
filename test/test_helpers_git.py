@@ -91,7 +91,7 @@ def test_get_upstream_remote(args, monkeypatch, tmpdir):
 
     # Override pmb.config.git_repos
     url = "https://postmarketos.org/get-upstream-remote-test.git"
-    git_repos = {"test": url}
+    git_repos_default = {"test": url}
     monkeypatch.setattr(pmb.config, "git_repos_default", git_repos_default)
 
     def run_git(git_args):
