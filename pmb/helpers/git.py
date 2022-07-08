@@ -22,7 +22,7 @@ def get_path(args, name_repo):
     return args.work + "/cache_git/" + name_repo
 
 
-def clone(args, name_repo):
+def clone(args, name_repo, branch=""):
     """ Clone a git repository to $WORK/cache_git/$name_repo (or to the
         overridden path set in args, as with pmbootstrap --aports).
 
@@ -40,6 +40,9 @@ def clone(args, name_repo):
         # Build git command
         url = cfg["git_repos"][name_repo]
         command = ["git", "clone"]
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
+            command += ["-b", branch, "--single-branch"]
         command += [url, path]
 
         # Create parent dir and clone
