@@ -126,6 +126,13 @@ defaults = {
     "qemu_redir_stdio": False
 }
 
+git_repos_config_keys = ["aports_upstream",
+                         "pmaports",
+                         "test"]
+
+git_repos_defaults = {
+    "aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
+    "pmaports": "https://gitlab.com/postmarketOS/pmaports.git"}
 
 # Whether we're connected to a TTY (which allows things like e.g. printing
 # progress bars)
@@ -948,14 +955,6 @@ flashers = {
             ],
         },
     }
-}
-
-#
-# GIT
-#
-git_repos = {
-    "aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
-    "pmaports": "https://gitlab.com/postmarketOS/pmaports.git",
 }
 
 # When a git repository is considered outdated (in seconds)

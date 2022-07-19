@@ -13,6 +13,8 @@ def load(args):
 
     if "pmbootstrap" not in cfg:
         cfg["pmbootstrap"] = {}
+    if "git_repos" not in cfg:
+        cfg["git_repos"] = {}
     if "providers" not in cfg:
         cfg["providers"] = {}
 
@@ -30,5 +32,16 @@ def load(args):
                           " default value from config:"
                           f" {cfg['pmbootstrap'][key]}")
             del cfg["pmbootstrap"][key]
+
+    for key in pmb.config.git_repos_defaults:
+        if key not in cfg["git_repos"]:
+            cfg["git_repos"][key] = str(pmb.config.git_repos_defaults[key])
+
+        if key not in pmb.config.git_repos_config_keys and key in cfg["git_repos"]:
+            logging.debug("Ignored unconfigurable and possibly outdated"
+                          " default value from config:"
+                          f" {cfg['git_repos'][key]}")
+            del cfg["git_repos"][key]
+
 
     return cfg

@@ -21,23 +21,27 @@ def get_path(args, name_repo):
         return args.aports
     return args.work + "/cache_git/" + name_repo
 
-
-def clone(args, name_repo):
+def clone(args, name_repo, branch=""):
     """ Clone a git repository to $WORK/cache_git/$name_repo (or to the
         overridden path set in args, as with pmbootstrap --aports).
 
         :param name_repo: short alias used for the repository name, from
-                          pmb.config.git_repos (e.g. "aports_upstream",
+                          pmb.config.git_repos_default (e.g. "aports_upstream",
                           "pmaports") """
     # Check for repo name in the config
-    if name_repo not in pmb.config.git_repos:
+    cfg = pmb.config.load(args)
+
+    if name_repo not in cfg["git_repos"]:
         raise ValueError("No git repository configured for " + name_repo)
 
     path = get_path(args, name_repo)
     if not os.path.exists(path):
         # Build git command
-        url = pmb.config.git_repos[name_repo]
+        url = cfg["git_repos"][name_repo]
         command = ["git", "clone"]
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
+            command += ["-b", branch, "--single-branch"]
         command += [url, path]
 
         # Create parent dir and clone
@@ -82,16 +86,18 @@ def clean_worktree(args, path):
     command = ["git", "status", "--porcelain"]
     return pmb.helpers.run.user(args, command, path, output_return=True) == ""
 
-
 def get_upstream_remote(args, name_repo):
     """ Find the remote, which matches the git URL from the config. Usually
         "origin", but the user may have set up their git repository
         differently. """
-    url = pmb.config.git_repos[name_repo]
+    cfg = pmb.config.load(args)
+    url = cfg["git_repos"][name_repo]
     path = get_path(args, name_repo)
     command = ["git", "remote", "-v"]
     output = pmb.helpers.run.user(args, command, path, output_return=True)
     for line in output.split("\n"):
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
         if url in line:
             return line.split("\t", 1)[0]
     raise RuntimeError("{}: could not find remote name for URL '{}' in git"
@@ -99,7 +105,7 @@ def get_upstream_remote(args, name_repo):
 
 
 def parse_channels_cfg(args):
-    """ Parse channels.cfg from pmaports.git, origin/master branch.
+    """ Parse channels.cfg from pmaports.git.
         Reference: https://postmarketos.org/channels.cfg
         :returns: dict like: {"meta": {"recommended": "edge"},
                               "channels": {"edge": {"description": ...,
@@ -118,7 +124,13 @@ def parse_channels_cfg(args):
         cfg.read([args.config_channels])
     else:
         remote = get_upstream_remote(args, "pmaports")
-        command = ["git", "show", f"{remote}/master:channels.cfg"]
+        cfg_temp = pmb.config.load(args)
+        url = cfg_temp["git_repos"]["pmaports"]
+        if "#branch=" in url:
+            url, branch = url.split("#branch=")
+        else:
+            branch = "master"
+        command = ["git", "show", f"{remote}/{branch}:channels.cfg"]
         stdout = pmb.helpers.run.user(args, command, args.aports,
                                       output_return=True, check=False)
         try:
@@ -127,7 +139,7 @@ def parse_channels_cfg(args):
             logging.info("NOTE: fix this by fetching your pmaports.git, e.g."
                          " with 'pmbootstrap pull'")
             raise RuntimeError("Failed to read channels.cfg from"
-                               f" '{remote}/master' branch of your local"
+                               f" '{remote}/{branch}' branch of your local"
                                " pmaports clone")
 
     # Meta section
