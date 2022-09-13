@@ -379,11 +379,12 @@ def kconfig(args):
         # Handle passing a file directly
         if args.file:
             if pmb.parse.kconfig.check_file(args.package,
-                                            anbox=args.anbox,
+                                            waydroid=args.waydroid,
                                             nftables=args.nftables,
                                             containers=args.containers,
                                             zram=args.zram,
                                             netboot=args.netboot,
+                                            community=args.community,
                                             uefi=args.uefi,
                                             details=True):
                 logging.info("kconfig check succeeded!")
@@ -414,12 +415,13 @@ def kconfig(args):
                     continue
             if not pmb.parse.kconfig.check(
                     args, package,
-                    force_anbox_check=args.anbox,
+                    force_waydroid_check=args.waydroid,
                     force_iwd_check=args.iwd,
                     force_nftables_check=args.nftables,
                     force_containers_check=args.containers,
                     force_zram_check=args.zram,
                     force_netboot_check=args.netboot,
+                    force_community_check=args.community,
                     force_uefi_check=args.uefi,
                     details=True):
                 error = True

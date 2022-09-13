@@ -85,12 +85,13 @@ def check_option(component, details, config, config_path_pretty, option,
 
 
 def check_config(config_path, config_path_pretty, config_arch, pkgver,
-                 anbox=False,
+                 waydroid=False,
                  iwd=False,
                  nftables=False,
                  containers=False,
                  zram=False,
                  netboot=False,
+                 community=False,
                  uefi=False,
                  details=False):
     logging.debug(f"Check kconfig: {config_path}")
@@ -98,8 +99,8 @@ def check_config(config_path, config_path_pretty, config_arch, pkgver,
         config = handle.read()
 
     components = {"postmarketOS": pmb.config.necessary_kconfig_options}
-    if anbox:
-        components["anbox"] = pmb.config.necessary_kconfig_options_anbox
+    if waydroid:
+        components["waydroid"] = pmb.config.necessary_kconfig_options_waydroid
     if iwd:
         components["iwd"] = pmb.config.necessary_kconfig_options_iwd
     if nftables:
@@ -110,6 +111,14 @@ def check_config(config_path, config_path_pretty, config_arch, pkgver,
     if zram:
         components["zram"] = pmb.config.necessary_kconfig_options_zram
     if netboot:
+        components["netboot"] = pmb.config.necessary_kconfig_options_netboot
+    if community:
+        components["waydroid"] = pmb.config.necessary_kconfig_options_waydroid
+        components["iwd"] = pmb.config.necessary_kconfig_options_iwd
+        components["nftables"] = pmb.config.necessary_kconfig_options_nftables
+        components["containers"] = \
+            pmb.config.necessary_kconfig_options_containers
+        components["zram"] = pmb.config.necessary_kconfig_options_zram
         components["netboot"] = pmb.config.necessary_kconfig_options_netboot
     if uefi:
         components["uefi"] = pmb.config.necessary_kconfig_options_uefi
@@ -156,12 +165,13 @@ def check_config_options_set(config, config_path_pretty, config_arch, options,
 
 
 def check(args, pkgname,
-          force_anbox_check=False,
+          force_waydroid_check=False,
           force_iwd_check=False,
           force_nftables_check=False,
           force_containers_check=False,
           force_zram_check=False,
           force_netboot_check=False,
+          force_community_check=False,
           force_uefi_check=False,
           details=False,
           must_exist=True):
@@ -184,8 +194,8 @@ def check(args, pkgname,
         return None
     apkbuild = pmb.parse.apkbuild(f"{aport}/APKBUILD")
     pkgver = apkbuild["pkgver"]
-    check_anbox = force_anbox_check or (
-        "pmb:kconfigcheck-anbox" in apkbuild["options"])
+    check_waydroid = force_waydroid_check or (
+        "pmb:kconfigcheck-waydroid" in apkbuild["options"])
     check_iwd = force_iwd_check or (
         "pmb:kconfigcheck-iwd" in apkbuild["options"])
     check_nftables = force_nftables_check or (
@@ -196,6 +206,8 @@ def check(args, pkgname,
         "pmb:kconfigcheck-zram" in apkbuild["options"])
     check_netboot = force_netboot_check or (
         "pmb:kconfigcheck-netboot" in apkbuild["options"])
+    check_community = force_community_check or (
+        "pmb:kconfigcheck-community" in apkbuild["options"])
     check_uefi = force_uefi_check or (
         "pmb:kconfigcheck-uefi" in apkbuild["options"])
     for config_path in glob.glob(aport + "/config-*"):
@@ -216,12 +228,13 @@ def check(args, pkgname,
         config_path_pretty = f"linux-{flavor}/{os.path.basename(config_path)}"
         ret &= check_config(config_path, config_path_pretty, config_arch,
                             pkgver,
-                            anbox=check_anbox,
+                            waydroid=check_waydroid,
                             iwd=check_iwd,
                             nftables=check_nftables,
                             containers=check_containers,
                             zram=check_zram,
                             netboot=check_netboot,
+                            community=check_community,
                             uefi=check_uefi,
                             details=details)
     return ret
@@ -259,9 +272,9 @@ def extract_version(config_file):
     return "unknown"
 
 
-def check_file(config_file, anbox=False, nftables=False,
-               containers=False, zram=False, netboot=False, uefi=False,
-               details=False):
+def check_file(config_file, waydroid=False, nftables=False,
+               containers=False, zram=False, netboot=False,
+               community=False, uefi=False, details=False):
     """
     Check for necessary kernel config options in a kconfig file.
 
@@ -272,10 +285,11 @@ def check_file(config_file, anbox=False, nftables=False,
     logging.debug(f"Check kconfig: parsed arch={arch}, version={version} from "
                   f"file: {config_file}")
     return check_config(config_file, config_file, arch, version,
-                        anbox=anbox,
+                        waydroid=waydroid,
                         nftables=nftables,
                         containers=containers,
                         zram=zram,
                         netboot=netboot,
+                        community=community,
                         uefi=uefi,
                         details=details)
