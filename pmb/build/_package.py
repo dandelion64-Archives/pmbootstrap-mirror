@@ -452,7 +452,8 @@ def run_abuild(args, apkbuild, arch, strict=False, force=False, cross=None,
     pmb.build.copy_to_buildpath(args, apkbuild["pkgname"], suffix)
     override_source(args, apkbuild, pkgver, src, suffix)
     link_to_git_dir(args, suffix)
-    pmb.chroot.user(args, cmd, suffix, "/home/pmos/build", env=env)
+    pmb.chroot.user(args, cmd, suffix, "/home/pmos/build", env=env,
+                    print_stacktrace=False)
     return (output, cmd, env)
 
 

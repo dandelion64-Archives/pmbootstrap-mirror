@@ -254,5 +254,10 @@ Alternatively you can run a single test file if you wish:
 $ pytest -vv ./test/test_keys.py
 ```
 
+### Always print the python stacktrace
+
+pmbootstrap will not print the stacktrace when a build fails.
+To always print the stacktrace, set the `PMB_DEBUG` environmental variable.
+
 ## License
 [GPLv3](LICENSE)

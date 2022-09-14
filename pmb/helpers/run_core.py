@@ -203,7 +203,7 @@ def foreground_tui(cmd, working_dir=None):
     return process.wait()
 
 
-def check_return_code(args, code, log_message):
+def check_return_code(args, code, log_message, print_stacktrace=True):
     """
     Check the return code of a command.
 
@@ -218,6 +218,12 @@ def check_return_code(args, code, log_message):
         logging.debug("^" * 70)
         logging.info("NOTE: The failed command's output is above the ^^^ line"
                      " in the log file: " + args.log)
+
+        print_stacktrace = 'PMB_DEBUG' in os.environ
+
+        if not print_stacktrace:
+            raise SystemExit()
+
         raise RuntimeError(f"Command failed (exit code {str(code)}): " +
                            log_message)
 
@@ -251,7 +257,8 @@ def sudo_timer_start():
 
 
 def core(args, log_message, cmd, working_dir=None, output="log",
-         output_return=False, check=None, sudo=False, disable_timeout=False):
+         output_return=False, check=None, sudo=False, disable_timeout=False,
+         print_stacktrace=True):
     """
     Run a command and create a log entry.
 
@@ -348,7 +355,7 @@ def core(args, log_message, cmd, working_dir=None, output="log",
 
     # Check the return code
     if check is not False:
-        check_return_code(args, code, log_message)
+        check_return_code(args, code, log_message, print_stacktrace)
 
     # Return (code or output string)
     return output_after_run if output_return else code
