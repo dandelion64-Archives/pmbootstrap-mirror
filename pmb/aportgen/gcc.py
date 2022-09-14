@@ -29,7 +29,7 @@ def generate(args, pkgname):
         "pkgname": pkgname,
         "pkgdesc": f"Stage2 cross-compiler for {arch}",
         "arch": pmb.config.arch_native,
-        "depends": f"isl binutils-{arch} mpc1",
+        "depends": f"binutils-{arch} mpc1",
         "makedepends_build": "gcc g++ bison flex texinfo gawk zip"
                              " gmp-dev mpfr-dev mpc1-dev zlib-dev",
         "makedepends_host": "linux-headers gmp-dev mpfr-dev mpc1-dev isl-dev"
@@ -78,6 +78,9 @@ def generate(args, pkgname):
         # use CBUILDROOT as sysroot. In the original APKBUILD this is a local
         # variable, but we make it a global one.
         '*_cross_configure=*': None,
+
+        # Do not build foreign arch libgcc, we use the one from Alpine (#2168)
+        '_libgcc=true*': '_libgcc=false',
     }
 
     pmb.aportgen.core.rewrite(args, pkgname, based_on, fields,
