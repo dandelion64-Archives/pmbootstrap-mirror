@@ -702,6 +702,17 @@ def arguments():
         action.add_argument("-c", "--clear", help="clear the log",
                             action="store_true", dest="clear_log")
 
+    # Action: check
+    check = sub.add_parser("check", help="run CI scripts locally. By default, it will run"
+                           " all tests")
+    check.add_argument("--pytest", action="store_true", help="only run the pytest test",
+                       dest="pytest")
+    check.add_argument("--vermin", action="store_true", help="only run the vermin test",
+                       dest="vermin")
+    check.add_argument("--static-code", action="store_true", help="only run the static code"
+                       " analysis test",
+                       dest="static_code")
+
     # Action: zap
     zap = sub.add_parser("zap", help="safely delete chroot folders")
     zap.add_argument("--dry", action="store_true", help="instead of actually"

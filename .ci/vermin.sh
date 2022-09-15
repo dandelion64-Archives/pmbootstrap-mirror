@@ -1,4 +1,7 @@
 #!/bin/sh -e
+
+PATH="$PATH:$HOME/.local/bin/"
+
 _vermin() {
 	if ! vermin -q "$@" >/dev/null 2>&1; then
 		vermin -vv "$@"

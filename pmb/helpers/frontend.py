@@ -10,6 +10,7 @@ import pmb.aportgen
 import pmb.build
 import pmb.build.autodetect
 import pmb.sideload
+import pmb.check
 import pmb.chroot
 import pmb.chroot.initfs
 import pmb.chroot.other
@@ -608,3 +609,29 @@ def lint(args):
 def status(args):
     if not pmb.helpers.status.print_status(args, args.details):
         sys.exit(1)
+
+
+def check(args):
+    suffix = "native"
+    chroot = args.work + "/chroot_" + suffix
+    if not os.path.exists(chroot):
+        logging.info("path: " + chroot + " does not exist")
+        logging.info("Run pmbootstrap init and pmbootstrap install before running checks")
+        raise RuntimeError("Checks are ran in a chroot")
+
+    abs_pmbootinchroot = pmb.check.mv_pmbootstrap(args, suffix)
+
+    # By default, run all checks
+    allCheckBool = [args.vermin, args.static_code, args.pytest]
+    if not any(allCheckBool):
+        pmb.check.vermin(args, abs_pmbootinchroot, suffix)
+        pmb.check.static_code_analysis(args, abs_pmbootinchroot, suffix)
+        pmb.check.pytest(args, abs_pmbootinchroot, suffix)
+        return
+
+    if args.vermin:
+        pmb.check.vermin(args, abs_pmbootinchroot, suffix)
+    if args.static_code:
+        pmb.check.static_code_analysis(args, abs_pmbootinchroot, suffix)
+    if args.pytest:
+        pmb.check.pytest(args, abs_pmbootinchroot, suffix)
