@@ -20,7 +20,8 @@ image: alpine:latest
 static-code-analysis:
   <<: *only-default
   before_script:
-    - "adduser -D pmos"
+    - adduser -D pmos
+    - ./.ci/prepare.sh
   script:
     - su pmos -c "./pmbootstrap.py check --static-code"
 
@@ -28,7 +29,8 @@ vermin:
   image: alpine:latest
   <<: *only-default
   before_script:
-    - "adduser -D pmos"
+    - adduser -D pmos
+    - ./.ci/prepare.sh
   script:
     - su pmos -c "./pmbootstrap.py check --vermin"
 
@@ -46,7 +48,8 @@ mr-settings:
 pytest:
   <<: *only-default
   before_script:
-    - "adduser -D pmos"
+    - adduser -D pmos
+    - ./.ci/prepare.sh
   script:
     - su pmos -c "./pmbootstrap.py check --pytest"
   after_script:
