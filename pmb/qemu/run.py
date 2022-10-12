@@ -83,12 +83,14 @@ def create_gdk_loader_cache(args):
     pmb.chroot.root(args, cmd)
     return rootfs_native + custom_cache_path
 
+
 def get_wsl_file_path(args, path):
     """
     Get a Windows accessible path from a WSL environment
     """
     path = pmb.helpers.run.user(args, ["wslpath", "-w", path], output_return=True)
     return path.rstrip()
+
 
 def command_qemu(args, arch, img_path, img_path_2nd=None):
     """
