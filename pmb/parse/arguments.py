@@ -366,6 +366,10 @@ def arguments_qemu(subparser):
     ret.add_argument("--host-qemu", dest="host_qemu", action='store_true',
                      help="Use the host system's qemu")
 
+    ret.add_argument("--wsl", dest="wsl", action='store_true',
+                     help="Run Windows QEMU in a WSL environment"
+                     "(NOTE: This will automatically GL and KVM support)")
+
     return ret
 
 
