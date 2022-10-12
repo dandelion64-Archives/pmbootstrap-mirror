@@ -44,11 +44,15 @@ def create_second_storage(args):
     return path
 
 
-def which_qemu(arch):
+def which_qemu(arch, wsl):
     """
     Finds the qemu executable or raises an exception otherwise
     """
     executable = "qemu-system-" + arch
+
+    if wsl:
+        executable += ".exe"
+
     if shutil.which(executable):
         return executable
     else:
@@ -79,11 +83,18 @@ def create_gdk_loader_cache(args):
     pmb.chroot.root(args, cmd)
     return rootfs_native + custom_cache_path
 
+def get_wsl_file_path(args, path):
+    """
+    Get a Windows accessible path from a WSL environment
+    """
+    path = pmb.helpers.run.user(args, ["wslpath", "-w", path], output_return=True)
+    return path.rstrip()
 
 def command_qemu(args, arch, img_path, img_path_2nd=None):
     """
     Generate the full qemu command with arguments to run postmarketOS
     """
+
     cmdline = args.deviceinfo["kernel_cmdline"]
     if args.cmdline:
         cmdline = args.cmdline
@@ -118,8 +129,8 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
     if arch != pmb.config.arch_native and ncpus > 8:
         ncpus = 8
 
-    if args.host_qemu:
-        qemu_bin = which_qemu(arch)
+    if args.host_qemu or args.wsl:
+        qemu_bin = which_qemu(arch, args.wsl)
         env = {}
         command = [qemu_bin]
     else:
@@ -159,6 +170,14 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
                     rootfs_native + "/usr/lib/pulseaudio"]
         command += [rootfs_native + "/usr/bin/qemu-system-" + arch]
         command += ["-L", rootfs_native + "/usr/share/qemu/"]
+
+    # WSL support
+    if args.wsl:
+        command += ["-accel", "whpx"]
+        kernel = get_wsl_file_path(args, kernel)
+        img_path = get_wsl_file_path(args, img_path)
+        if img_path_2nd:
+            img_path_2nd = get_wsl_file_path(args, img_path_2nd)
 
     command += ["-nodefaults"]
     command += ["-kernel", kernel]
@@ -201,7 +220,7 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
 
     # Kernel Virtual Machine (KVM) support
     native = pmb.config.arch_native == args.deviceinfo["arch"]
-    if args.qemu_kvm and native and os.path.exists("/dev/kvm"):
+    if args.qemu_kvm and not args.wsl and native and os.path.exists("/dev/kvm"):
         command += ["-enable-kvm"]
         command += ["-cpu", "host"]
     else:
@@ -212,7 +231,8 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
 
     display = args.qemu_display
     if display != "none":
-        display += ",gl=" + ("on" if args.qemu_gl else "off")
+        # Windows QEMU does not support gl=on
+        display += ",gl=" + ("on" if (args.qemu_gl and not args.wsl) else "off")
 
     # Separate -show-cursor option is deprecated. If your host qemu fails here,
     # it's old (#1995).
