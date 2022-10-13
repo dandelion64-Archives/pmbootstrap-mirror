@@ -338,8 +338,6 @@ necessary_kconfig_options_waydroid = {
             "SQUASHFS_XATTR": True,
             "TMPFS_XATTR": True,
             "ANDROID_BINDER_IPC": True,
-            "ANDROID_BINDERFS": False,
-            "ANDROID_BINDER_DEVICES": ["binder", "hwbinder", "vndbinder"],
             "NETFILTER_XTABLES": True,
             "NETFILTER_XT_MATCH_COMMENT": True,
             "IP_NF_MANGLE": True,
@@ -361,6 +359,18 @@ necessary_kconfig_options_waydroid = {
         "all": {
             "PSI": True,  # required by userspace OOM killer
             "PSI_DEFAULT_DISABLED": False,
+        }
+    },
+    "<5.0": {  # binderfs didn't exist in mainline before 5.0
+        "all": {
+            "ANDROID_BINDERFS": False,
+            "ANDROID_BINDER_DEVICES": ["binder", "hwbinder", "vndbinder"],
+        }
+    },
+    ">=5.0": {
+        "all": {
+            "ANDROID_BINDERFS": True,
+            "ANDROID_BINDER_DEVICES": "",
         }
     },
     "<5.18_rc1": {  # option has been dropped
