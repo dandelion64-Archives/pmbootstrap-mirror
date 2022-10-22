@@ -26,7 +26,8 @@ su pmos -c "git config --global user.email postmarketos-ci@localhost"
 su pmos -c "git config --global user.name postmarketOS_CI"
 
 echo "Initializing pmbootstrap"
-if ! su pmos -c "yes '' | pmbootstrap \
+if ! su pmos -c "pmbootstrap \
+		--assume-yes \
 		--details-to-stdout \
 		init \
 		>/tmp/pmb_init 2>&1"; then
