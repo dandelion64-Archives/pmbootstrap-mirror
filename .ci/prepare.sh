@@ -18,7 +18,6 @@ apk add -q \
 	py3-pytest-cov \
 	sudo
 
-adduser -D pmos
 chown -R pmos:pmos .
 echo 'pmos ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
