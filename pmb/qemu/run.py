@@ -111,6 +111,9 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
         if not os.path.exists(kernel):
             raise RuntimeError("failed to find the proper vmlinuz path")
 
+    # FIXME riscv64 hack
+    kernel = f"{rootfs}/usr/share/u-boot/qemu-riscv64_smode/u-boot.bin"
+
     ncpus = os.cpu_count()
 
     # QEMU mach-virt's max CPU count is 8, limit it so it will work correctly
@@ -185,7 +188,7 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
         command += ["-device", "virtio-mouse-pci"]
     command += ["-device", "virtio-keyboard-pci"]
     command += ["-nic",
-                "user,model=virtio-net-pci,"
+                "user,id=net,model=virtio-net-pci,"
                 "hostfwd=tcp::" + port_ssh + "-:22,"
                 ]
 
@@ -195,6 +198,11 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
         command += ["-M", "virt"]
         command += ["-cpu", "cortex-a57"]
         command += ["-device", "virtio-gpu-pci"]
+    elif arch == "riscv64":
+        command += ["-M", "virt"]
+        command += ["-device", "virtio-gpu-pci"]
+        command += ["-device", "virtio-net-device,netdev=net"]
+        command += ["-bios", f"{rootfs}/usr/share/opensbi/generic/firmware/fw_jump.elf"]
     else:
         raise RuntimeError(f"Architecture {arch} not supported by this command"
                            " yet.")
@@ -221,7 +229,9 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
     # Audio support
     if args.qemu_audio:
         command += ["-audiodev", args.qemu_audio + ",id=audio"]
-        command += ["-soundhw", "hda"]
+        #command += ["-soundhw", "hda"]
+        #command += ["-device", "intel-hda", "-device", "hda-duplex"]
+        command += ["-device", "usb-audio,audiodev=audio"]
 
     return (command, env)
 
