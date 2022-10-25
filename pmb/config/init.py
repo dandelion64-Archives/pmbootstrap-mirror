@@ -507,12 +507,25 @@ def ask_for_additional_options(args, cfg):
 
     # Mirrors
     # prompt for mirror change
-    logging.info("Selected mirror:"
+    logging.info("Selected mirror: "
                  f" {','.join(args.mirrors_postmarketos)}")
+    logging.info("NOTE: using HTTP is conscious decision" 
+        "which can be changed in following prompt. "
+        "For details please see related PR: "
+        "https://gitlab.com/postmarketOS/pmbootstrap/-/merge_requests/2035#note_601066761")
+    mirrors = cfg["pmbootstrap"]["mirrors_postmarketos"]
     if pmb.helpers.cli.confirm(args, "Change mirror?", default=False):
-        mirrors = ask_for_mirror(args)
-        cfg["pmbootstrap"]["mirrors_postmarketos"] = ",".join(mirrors)
+      mirrors = ask_for_mirror(args, )
+      cfg["pmbootstrap"]["mirrors_postmarketos"] = ",".join(mirrors)
+# add global setting + call from ask for mirror too
 
+def ask_prefer_secure_postmarketos_mirror_protocol(args):
+    decision = pmb.helpers.cli.confirm(
+        args, "Prefer HTTPS protocol for postmarketOS mirrors where available?",
+        default=False)
+    cfg["pmbootstrap"]["prefer_secure_postmarketos_mirrors_protocol"] = decision
+    
+    return decision
 
 def ask_for_mirror(args):
     regex = "^[1-9][0-9]*$"  # single non-zero number only
@@ -527,27 +540,25 @@ def ask_for_mirror(args):
     mirrors = json.loads(s)
     keys = mirrors.keys()
     i = 1
+    found_mirror = False
+
     for key in keys:
         logging.info(f"[{i}]\t{key} ({mirrors[key]['location']})")
         i += 1
-
-    urls = []
+        if prefered_mirrors_protocol in key["location"]:
+            found_mirror = True
+    
+    if not found_mirror:
+        logger.warn("No mirror with prefered protocol found, defaulting to HTTP")
+        cfg["pmbootstrap"]["prefer_secure_postmarketos_mirrors_protocol"] = False
+    else 
+        ask_prefer_secure_postmarketos_mirror_protocol(args)
+	
     for key in keys:
-        # accept only http:// or https:// urls
-        http_count = 0  # remember if we saw any http:// only URLs
-        link_list = []
-        for k in mirrors[key]["urls"]:
-            if k.startswith("http"):
-                link_list.append(k)
-            if k.startswith("http://"):
-                http_count += 1
-        # remove all https urls if there is more that one URL and one of
-        #     them was http://
-        if http_count > 0 and len(link_list) > 1:
-            link_list = [k for k in link_list if not k.startswith("https")]
-        if len(link_list) > 0:
-            urls.append(link_list[0])
-
+        found_urls = list(filter(lambda x: prefered_protocol in x, mirrors[key]["urls"]))
+        if len(found_urls) < 1:
+            found_urls = list(filter(lambda x: "http" in x, mirrors[key]["urls"]))
+        
     mirror_indexes = []
     for mirror in args.mirrors_postmarketos:
         for i in range(len(urls)):
@@ -600,7 +611,6 @@ def ask_build_pkgs_on_install(args):
     return pmb.helpers.cli.confirm(args, "Build outdated packages during"
                                    " 'pmbootstrap install'?",
                                    default=args.build_pkgs_on_install)
-
 
 def ask_for_locale(args):
     locales = pmb.config.locales
