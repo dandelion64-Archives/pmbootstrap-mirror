@@ -139,7 +139,7 @@ def sideload(args):
     user = args.user
     host = args.host
     pmb.sideload.sideload(args, user, host, args.port, arch, args.install_key,
-                          args.packages)
+                          args.force_reinstall, args.packages)
 
 
 def netboot(args):

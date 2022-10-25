@@ -218,6 +218,8 @@ def arguments_sideload(subparser):
     ret.add_argument("--install-key", help="install the apk key from this"
                      " machine if needed",
                      action="store_true", dest="install_key")
+    ret.add_argument("--reinstall", help="force packages reinstall",
+                     action="store_true", dest="force_reinstall")
     return ret
 
 
