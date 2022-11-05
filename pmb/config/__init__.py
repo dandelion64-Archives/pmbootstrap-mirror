@@ -424,6 +424,7 @@ necessary_kconfig_options_nftables = {
             "IP6_NF_FILTER": True,
             "IP6_NF_TARGET_REJECT": True,
             "IP6_NF_NAT": True,
+            "NETFILTER_XT_TARGET_TCPMSS": True,
         }
     },
     ">=3.13.0 <5.17": {  # option has been dropped
