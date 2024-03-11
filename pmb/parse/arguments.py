@@ -146,6 +146,9 @@ def arguments_install(subparser):
     group.add_argument("--add", help="comma separated list of packages to be"
                        " added to the rootfs (e.g. 'vim,gcc')",
                        metavar="PACKAGES")
+    group.add_argument("--flatpak", help="whether to install recommended apps"
+                       " that support it from flatpak",
+                       choices=["default", "always", "never"])
     group.add_argument("--no-base",
                        help="do not install postmarketos-base (advanced)",
                        action="store_false", dest="install_base")

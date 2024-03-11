@@ -9,12 +9,15 @@ import sys
 
 import pmb.chroot
 import pmb.chroot.apk
+import pmb.chroot.flatpak
 import pmb.chroot.other
 import pmb.chroot.initfs
 import pmb.config
 import pmb.config.pmaports
 import pmb.helpers.devices
+import pmb.helpers.other
 import pmb.helpers.run
+import pmb.helpers.ui
 import pmb.install.blockdevice
 import pmb.install.recovery
 import pmb.install.ui
@@ -660,24 +663,16 @@ def sanity_check_disk(args):
 
 
 def sanity_check_disk_size(args):
-    device = args.disk
-    devpath = os.path.realpath(device)
-    sysfs = '/sys/class/block/{}/size'.format(devpath.replace('/dev/', ''))
-    if not os.path.isfile(sysfs):
-        # This is a best-effort sanity check, continue if it's not checkable
+    size = pmb.helpers.other.get_device_size(args.disk)
+    # This is a best-effort sanity check, continue if it's not checkable
+    if size is None:
         return
-
-    with open(sysfs) as handle:
-        raw = handle.read()
-
-    # Size is in 512-byte blocks
-    size = int(raw.strip())
-    human = "{:.2f} GiB".format(size / 2 / 1024 / 1024)
+    human = "{:.2f} GiB".format(size)
 
     # Warn if the size is larger than 100GiB
-    if not args.assume_yes and size > (100 * 2 * 1024 * 1024):
+    if not args.assume_yes and size > 100:
         if not pmb.helpers.cli.confirm(args,
-                                       f"WARNING: The target disk ({devpath}) "
+                                       f"WARNING: The target disk ({args.disk}) "
                                        "is larger than a usual SD card "
                                        "(>100GiB). Are you sure you want to "
                                        f"overwrite this {human} disk?",
@@ -1183,6 +1178,73 @@ def get_recommends(args, packages, initial=True):
     return ret
 
 
+def _split_recommends(args, recommends):
+    """
+    Parse the recommends packages, and split them into the different install
+    categories. Recommended packages currently support being installed from APK
+    and flatpak. The syntax is:
+
+    apk-name[;flatpak:remote:id]
+
+    Where things in-between [] are optional. This function checks that flatpak
+    recommends are suitable to be installed in the device and exists.
+    Otherwise it will fallback to using the apk-name.
+
+    :param recommends: list of pmb_recommends to be installed
+    :returns: a dictionary with the different possible kind of recommends as
+              keys, and the list of packages to install for them in a list, e.g:
+              {
+                "apk": ["gnome-software", "firefox"],
+                "flatpak": ["flathub:org.gnome.Contacts"],
+              }
+    """
+
+    # First, do some checks where it never makes sense to use flatpaks
+    res = {"apk": [], "flatpak": []}
+    arch = args.deviceinfo["arch"]
+    if args.flatpak == "never":
+        res["apk"] = recommends
+        return res
+    if (
+            args.flatpak == "default" and
+            not pmb.helprs.ui.flatpak_by_default(arch, args.ui, args.disk)
+    ):
+        logging.debug("split_recommends: configuration not suitable for"
+                      " flatpaks")
+        res["apk"] = recommends
+        return res
+
+    # And now onto the split
+    for rec in recommends:
+        rec = rec.split(";")
+        if len(rec) == 1:
+            res["apk"].append(rec[0])
+            continue
+        if len(rec) == 2:
+            apk = rec[0]
+            flatpak = rec[1].split(":")
+            assert flatpak[0] == "flatpak", f"wrong recommends syntax in {rec}"
+            assert "flatpak" in recommends, "flatpaks requested, but not going to be installed"
+
+            flatpak_name = flatpak[2]
+            # Transform to app/ID/ARCH
+            if not flatpak_name.startswith("app/"):
+                flatpak_name = "app/" + flatpak_name
+            split = flatpak_name.split("/")
+            if len(split) < 3:
+                split.append(arch)
+            else:
+                split[2] = arch
+            flatpak_name = "/".join(split)
+            if pmb.chroot.flatpak.exists(args, flatpak_name, flatpak[1]):
+                res["flatpak"].append(":".join([flatpak[1], flatpak_name]))
+            else:
+                res["apk"].append(apk)
+
+    logging.debug(f"split_recommends: {res}")
+    return res
+
+
 def create_device_rootfs(args, step, steps):
     # List all packages to be installed (including the ones specified by --add)
     # and upgrade the installed packages/apkindexes
@@ -1240,7 +1302,9 @@ def create_device_rootfs(args, step, steps):
     pmb.helpers.repo.update(args, args.deviceinfo["arch"])
 
     # Install uninstallable "dependencies" by default
-    install_packages += get_recommends(args, install_packages)
+    recommends = get_recommends(args, install_packages)
+    recommends = _split_recommends(args, recommends)
+    install_packages += recommends["apk"]
 
     # Explicitly call build on the install packages, to re-build them or any
     # dependency, in case the version increased
@@ -1252,6 +1316,7 @@ def create_device_rootfs(args, step, steps):
     # because that doesn't always happen automatically yet, e.g. when the user
     # installed a hook without pmbootstrap - see #69 for more info)
     pmb.chroot.apk.install(args, install_packages, suffix)
+    pmb.chroot.flatpak.install(args, recommends["flatpak"], suffix)
     flavor = pmb.chroot.other.kernel_flavor_installed(args, suffix)
     pmb.chroot.initfs.build(args, flavor, suffix)
 

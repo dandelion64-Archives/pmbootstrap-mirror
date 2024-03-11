@@ -189,6 +189,25 @@ def ask_for_ui_extras(args, ui):
                                    default=args.ui_extras)
 
 
+def ask_for_flatpak(args, info, ui):
+    if not pmb.helpers.ui.flatpak_by_default(info["arch"], ui):
+        return "default"
+    # Flatpaks
+    logging.info("Some apps that are installed through recommends can be"
+                 " installed through flatpak instead of through apk. Options:")
+    logging.info("* default: let us select the best option depending on device"
+                 " and UI")
+    logging.info("* always: try to install apps from flatpak even if not"
+                 " recommended")
+    logging.info("* never: never install apps from flatpak")
+    flatpak_options = ["default", "always", "never"]
+    return pmb.helpers.cli.ask("Install recommended apps that support it from"
+                                 " flatpak?", choices=flatpak_options,
+                                 default=args.flatpak,
+                                 validation_regex=f"^({'|'.join(flatpak_options)})$",
+                                 complete=flatpak_options)
+
+
 def ask_for_keymaps(args, info):
     if "keymaps" not in info or info["keymaps"].strip() == "":
         return ""
@@ -435,7 +454,8 @@ def ask_for_additional_options(args, cfg):
                  f" parallel jobs: {args.jobs},"
                  f" ccache per arch: {args.ccache_size},"
                  f" sudo timer: {args.sudo_timer},"
-                 f" mirror: {','.join(args.mirrors_postmarketos)}")
+                 f" mirror: {','.join(args.mirrors_postmarketos)},"
+                 )
 
     if not pmb.helpers.cli.confirm(args, "Change them?",
                                    default=False):
@@ -675,6 +695,7 @@ def frontend(args):
     cfg["pmbootstrap"]["ui_extras"] = str(ask_for_ui_extras(args, ui))
     ask_for_provider_select_pkg(args, f"postmarketos-ui-{ui}",
                                 cfg["providers"])
+    cfg["pmbootstrap"]["flatpak"] = str(ask_for_flatpak(args, info, ui))
     ask_for_additional_options(args, cfg)
 
     # Extra packages to be installed to rootfs

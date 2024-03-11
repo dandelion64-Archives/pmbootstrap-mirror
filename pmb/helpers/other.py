@@ -3,12 +3,14 @@
 import glob
 import logging
 import os
+import os.path
 import re
 import pmb.chroot
 import pmb.config
 import pmb.config.init
 import pmb.helpers.pmaports
 import pmb.helpers.run
+from typing import Optional
 
 
 def folder_size(args, path):
@@ -279,6 +281,25 @@ def validate_hostname(hostname):
         return False
 
     return True
+
+
+def get_device_size(device: str) -> Optional[float]:
+    """
+    Get the syze in GiB of a certain device
+
+    :param device: the device to check, e.g: /dev/sda
+    :returns: the size in GiB, or None if it could not be determined
+    """
+    devpath = os.path.realpath(device)
+    sysfs = '/sys/class/block/{}/size'.format(devpath.replace('/dev/', ''))
+    if not os.path.isfile(sysfs):
+        return None
+
+    with open(sysfs) as handle:
+        raw = handle.read()
+
+    # Size is in 512-byte blocks
+    return int(raw.strip()) / 2 / 1024 / 1024
 
 
 """
