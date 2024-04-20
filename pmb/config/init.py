@@ -291,6 +291,7 @@ def ask_for_provider_select(args, apkbuild, providers_cfg):
                     for default in apkbuild["_pmb_default"]:
                         if default == pkgname:
                             priority += 100
+                            break
                         else:
                             priority = 0
 
@@ -310,7 +311,9 @@ def ask_for_provider_select(args, apkbuild, providers_cfg):
             if has_default and ret == 'default':
                 if len(apkbuild["_pmb_default"]) != 0:
                     for package in apkbuild["_pmb_default"]:
-                        providers_cfg[select] = providers_short[package]
+                        packagebase = package[:package.rfind("-")]
+                        if select == packagebase:
+                            providers_cfg[select] = providers_short[package]
                     break
                 # Selecting default means to not select any provider explicitly
                 # In other words, apk chooses it automatically based on
