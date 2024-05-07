@@ -191,15 +191,14 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
     command += ["-netdev", f"user,id=net,hostfwd=tcp:127.0.0.1:{port_ssh}-:22"]
     command += ["-device", "virtio-net-pci,netdev=net"]
 
+    # arch config
     if arch == "x86_64":
-        command += ["-device", "virtio-vga-gl"]
+        pass # no specific options for this arch
     elif arch == "aarch64":
         command += ["-M", "virt"]
         command += ["-cpu", "cortex-a57"]
-        command += ["-device", "virtio-gpu-pci"]
     elif arch == "riscv64":
         command += ["-M", "virt"]
-        command += ["-device", "virtio-gpu-pci"]
     else:
         raise RuntimeError(f"Architecture {arch} not supported by this command"
                            " yet.")
@@ -219,8 +218,17 @@ def command_qemu(args, arch, img_path, img_path_2nd=None):
     if args.qemu_cpu:
         command += ["-cpu", args.qemu_cpu]
 
+    # GPU/video config
     display = args.qemu_display
     if display != "none":
+        if arch == "x86_64":
+            command += ["-device", "virtio-vga-gl"]
+        elif arch == "aarch64":
+            command += ["-device", "virtio-gpu-pci"]
+        elif arch == "riscv64":
+            command += ["-device", "virtio-gpu-pci"]
+        else:
+            logging.warn(f"WARNING: not configuring graphics acceleration: unknown architecture {arch}")
         display += ",show-cursor=on,gl=" + ("on" if args.qemu_gl else "off")
 
     # Separate -show-cursor option is deprecated. If your host qemu fails here,
