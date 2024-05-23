@@ -104,7 +104,7 @@ def migrate_work_folder(args):
         pmb.chroot.zap(args, False)
         conf = args.work + "/config_abuild/abuild.conf"
         if os.path.exists(conf):
-            pmb.helpers.run.root(args, ["sed", "-i",
+            pmb.helpers.run.root(args, ["sed", "-i", "-e",
                                         "s./home/user/./home/pmos/.g", conf])
         # Update version file
         migrate_success(args, 1)
