@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import enum
 import filecmp
+from pathlib import Path
 from typing import List
 from pmb.helpers import logging
 import os
@@ -140,6 +141,8 @@ def init(args: PmbArgs, chroot: Chroot=Chroot.native(), usr_merge=UsrMerge.AUTO,
         pmb.chroot.apk.update_repository_list(args, chroot, postmarketos_mirror)
         warn_if_chroot_is_outdated(args, chroot)
         pmb.helpers.other.cache["pmb.chroot.init"][str(chroot)] = True
+        if chroot is not Chroot.native():
+            pmb.chroot.mount_native_tools(args, chroot)
         return
 
     # Require apk-tools-static
@@ -191,4 +194,7 @@ def init(args: PmbArgs, chroot: Chroot=Chroot.native(), usr_merge=UsrMerge.AUTO,
     # Upgrade packages in the chroot, in case alpine-base, apk, etc. have been
     # built from source with pmbootstrap
     pmb.chroot.root(args, ["apk", "--no-network", "upgrade", "-a"], chroot)
-    pmb.helpers.other.cache["pmb.chroot.init"][str(chroot)]
+    pmb.helpers.other.cache["pmb.chroot.init"][str(chroot)] = True
+
+    if chroot is not Chroot.native():
+        pmb.chroot.mount_native_tools(args, chroot)

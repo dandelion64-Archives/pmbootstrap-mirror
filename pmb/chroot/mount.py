@@ -1,11 +1,14 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
+import shlex
+from pmb.core.crosstool import CrossTool, CrossToolTarget
 from pmb.helpers import logging
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 import pmb.config
 from pmb.core.types import PmbArgs
+import pmb.helpers.run
 import pmb.parse
 import pmb.helpers.mount
 from pmb.core import Chroot
@@ -81,7 +84,7 @@ def mount(args: PmbArgs, chroot: Chroot=Chroot.native()):
     mount_dev_tmpfs(args, chroot)
 
     # Get all mountpoints
-    arch = pmb.parse.arch.from_chroot_suffix(args, chroot)
+    arch = chroot.arch
     channel = pmb.config.pmaports.read_config(args)["channel"]
     mountpoints: Dict[Path, Path] = {}
     for src_template, target_template in pmb.config.chroot_mount_bind.items():
@@ -97,6 +100,78 @@ def mount(args: PmbArgs, chroot: Chroot=Chroot.native()):
         pmb.helpers.mount.bind(args, source, target_outer)
 
 
+# Tools that should be mounted from a native chroot into a buildroot
+# or the rootfs to improve performance.
+host_native_tools = [
+    # mkinitfs
+    CrossTool(CrossToolTarget.ROOTFS,
+                          "postmarketos-mkinitfs",
+                          ["/usr/sbin/mkinitfs"]),
+    # pigz (urgh fakeroot)
+    # CrossTool(CrossToolTarget.BUILDROOT,
+    #                   "pigz",
+    #                   ["/usr/bin/pigz"]),
+    # python (breaks arch detection)
+    # CrossTool(CrossToolTarget.BUILDROOT,
+    #                   "python3",
+    #                   ["/usr/bin/python"]),
+]
+
+
+def unmount_native_tools(args: PmbArgs, chroot: Chroot):
+    """Unmount additional native tools that can be run from the chroot like pigz and mkinitfs."""
+    native = Chroot.native()
+
+    if chroot == native:
+        logging.warning(f"({chroot}) cannot unmount native tools from native chroot!")
+
+    tools = list(filter(lambda t: t.should_install(chroot.type), pmb.config.host_native_tools))
+    if not tools:
+        return
+
+    # Unbind mount binaries from the native chroot into the target chroot
+    for binary in sum(map(lambda t: t.paths, tools), []):
+        logging.info(f"({chroot}) unmounting {binary}")
+        pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False, umount=True)
+
+    pmb.helpers.mount.bind(args, native.path, chroot / "native", create_folders=False, umount=True)
+    pmb.helpers.run.root(args, ["rmdir", chroot / "native"])
+    pmb.helpers.run.root(args, ["rm", next(chroot.path.glob("etc/ld-musl-*.path"))])
+    pmb.helpers.run.root(args, ["rm", next(chroot.path.glob("lib/ld-musl-*.so.1"))])
+
+
+def mount_native_tools(args: PmbArgs, chroot: Chroot):
+    """Mount additional native tools that can be run from the chroot like pigz and mkinitfs."""
+    native = Chroot.native()
+
+    if chroot == native:
+        logging.warning(f"({chroot}) cannot mount native tools into native chroot!")
+
+    tools = list(filter(lambda t: t.should_install(chroot.type), pmb.config.host_native_tools))
+    if not tools:
+        return
+
+    # set up linker and library path stuff
+    mount_native_into_foreign(args, chroot)
+
+    logging.info(f"({chroot}) mounting native tools: {', '.join(map(lambda t: t.package, tools))}")
+    logging.info(tools)
+
+    # Install the tool in the chroots
+    pmb.chroot.apk.install(args, list(map(lambda t: t.package, tools)), native, build=False)
+    pmb.chroot.apk.install(args, list(map(lambda t: t.package, tools)), chroot, build=False)
+
+    # Bind mount binaries from the native chroot into the target chroot
+    for binary in sum(map(lambda t: t.paths, tools), []):
+        logging.info(f"({chroot}) mounting {binary}")
+        if not pmb.helpers.mount.ismount(chroot / binary):
+            # FIXME: wow we need a helper for this
+            pmb.helpers.run.root(args, ["touch", chroot / binary])
+            pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False)
+
+    #pmb.helpers.run.root(args, ["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
+
+
 def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
     source = Chroot.native().path
     target = chroot / "native"
@@ -104,10 +179,18 @@ def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
 
     musl = next(source.glob("lib/ld-musl-*.so.1")).name
     musl_link = (chroot / "lib" / musl)
-    if not musl_link.is_symlink():
-        pmb.helpers.run.root(args, ["ln", "-s", "/native/lib/" + musl,
-                                    musl_link])
-        pmb.helpers.run.root(args, ["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
+    
+    # Sanity check that the chroot is for a non-native arch
+    if musl_link.is_symlink():
+        return
+
+    pmb.helpers.run.root(args, ["ln", "-s", "/native/lib/" + musl, musl_link])
+
+    # configure library search path for native tools
+    ldconfig = "/native/lib:/native/usr/lib:/native/usr/local/lib"
+    musl_path = f"/etc/{musl}".replace(".so.1", ".path")
+    pmb.helpers.run.root(args, ["sh", "-c", "echo "
+                                    f"{shlex.quote(ldconfig)} >> {chroot / musl_path}"])
 
 def remove_mnt_pmbootstrap(args: PmbArgs, chroot: Chroot):
     """ Safely remove /mnt/pmbootstrap directories from the chroot, without

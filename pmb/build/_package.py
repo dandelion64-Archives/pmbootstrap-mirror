@@ -243,6 +243,9 @@ def init_buildenv(args: PmbArgs, apkbuild, arch, strict=False, force=False, cros
         pmb.build.init_compiler(args, depends, cross, arch)
     if cross == "crossdirect":
         pmb.chroot.mount_native_into_foreign(args, suffix)
+        # pmb.chroot.mount_native_tools(args, suffix,
+        #                               ["pigz"],
+        #                               [Path("/usr/bin/pigz")])
 
     return True
 

@@ -125,6 +125,9 @@ def copy_files_from_chroot(args: PmbArgs, chroot: Chroot):
     if os.path.exists(fifo):
         pmb.helpers.run.root(args, ["rm", fifo])
 
+    # Remove native tools
+    pmb.chroot.unmount_native_tools(args, chroot)
+
     # Get all folders inside the device rootfs (except for home)
     folders: List[str] = []
     for path in mountpoint_outside.glob("*"):
