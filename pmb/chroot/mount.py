@@ -20,11 +20,17 @@ def create_device_nodes(args, suffix):
             path = chroot + "/dev/" + str(dev[4])
             if not os.path.exists(path):
                 pmb.helpers.run.root(args, ["mknod",
-                                            "-m", str(dev[0]),  # permissions
                                             path,  # name
                                             str(dev[1]),  # type
                                             str(dev[2]),  # major
                                             str(dev[3]),  # minor
+                                            ])
+                
+                # chmod needs to be split from mknod to accommodate 
+                # for FreeBSD mknod not including -m
+                pmb.helpers.run.root(args, ["chmod",
+                                            str(dev[0]),  # permissions
+                                            path,  # name
                                             ])
 
         # Verify major and minor numbers of created nodes

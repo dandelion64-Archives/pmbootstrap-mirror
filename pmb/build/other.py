@@ -146,7 +146,7 @@ def configure_abuild(args, suffix, verify=False):
                                 suffix)
                 configure_abuild(args, suffix, True)
             return
-    pmb.chroot.root(args, ["sed", "-i", f"$ a\\{prefix}{args.jobs}", "/etc/abuild.conf"], suffix)
+    pmb.chroot.root(args, ["sed", "-i", "-e", f"$ a\\{prefix}{args.jobs}", "/etc/abuild.conf"], suffix)
 
 
 def configure_ccache(args, suffix="native", verify=False):

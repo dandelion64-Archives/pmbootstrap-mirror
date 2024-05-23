@@ -194,7 +194,7 @@ def configure_apk(args):
         pmb.helpers.run.root(args, ["cp", f, rootfs + "/var/cache/apk/"])
 
     # Disable pmbootstrap repository
-    pmb.helpers.run.root(args, ["sed", "-i", r"/\/mnt\/pmbootstrap\/packages/d",
+    pmb.helpers.run.root(args, ["sed", "-i", "-e", r"/\/mnt\/pmbootstrap\/packages/d",
                                 rootfs + "/etc/apk/repositories"])
     pmb.helpers.run.user(args, ["cat", rootfs + "/etc/apk/repositories"])
 
@@ -361,7 +361,7 @@ def setup_keymap(args):
             config = config.splitlines()[-1]
             old_text = "Option *\\\"XkbLayout\\\" *\\\".*\\\""
             new_text = "Option \\\"XkbLayout\\\" \\\"" + layout + "\\\""
-            pmb.chroot.root(args, ["sed", "-i", "s/" + old_text + "/" +
+            pmb.chroot.root(args, ["sed", "-i", "-e", "s/" + old_text + "/" +
                             new_text + "/", config], suffix)
     else:
         logging.info("NOTE: No valid keymap specified for device")
