@@ -23,7 +23,7 @@ def create_device_nodes(args: PmbArgs, chroot: Chroot):
         for dev in pmb.config.chroot_device_nodes:
             path = chroot / "dev" / str(dev[4])
             if not path.exists():
-                pmb.helpers.run.root(args, ["mknod",
+                pmb.helpers.run.root(["mknod",
                                             "-m", str(dev[0]),  # permissions
                                             path,  # name
                                             str(dev[1]),  # type
@@ -63,20 +63,20 @@ def mount_dev_tmpfs(args: PmbArgs, chroot: Chroot=Chroot.native()):
         return
 
     # Create the $chroot/dev folder and mount tmpfs there
-    pmb.helpers.run.root(args, ["mkdir", "-p", dev])
-    pmb.helpers.run.root(args, ["mount", "-t", "tmpfs",
+    pmb.helpers.run.root(["mkdir", "-p", dev])
+    pmb.helpers.run.root(["mount", "-t", "tmpfs",
                                 "-o", "size=1M,noexec,dev",
                                 "tmpfs", dev])
 
     # Create pts, shm folders and device nodes
-    pmb.helpers.run.root(args, ["mkdir", "-p", dev / "pts", dev / "shm"])
-    pmb.helpers.run.root(args, ["mount", "-t", "tmpfs",
+    pmb.helpers.run.root(["mkdir", "-p", dev / "pts", dev / "shm"])
+    pmb.helpers.run.root(["mount", "-t", "tmpfs",
                                 "-o", "nodev,nosuid,noexec",
                                 "tmpfs", dev / "shm"])
     create_device_nodes(args, chroot)
 
     # Setup /dev/fd as a symlink
-    pmb.helpers.run.root(args, ["ln", "-sf", "/proc/self/fd", f"{dev}/"])
+    pmb.helpers.run.root(["ln", "-sf", "/proc/self/fd", f"{dev}/"])
 
 
 def mount(args: PmbArgs, chroot: Chroot=Chroot.native()):
@@ -135,9 +135,9 @@ def unmount_native_tools(args: PmbArgs, chroot: Chroot):
         pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False, umount=True)
 
     pmb.helpers.mount.bind(args, native.path, chroot / "native", create_folders=False, umount=True)
-    pmb.helpers.run.root(args, ["rmdir", chroot / "native"])
-    pmb.helpers.run.root(args, ["rm", next(chroot.path.glob("etc/ld-musl-*.path"))])
-    pmb.helpers.run.root(args, ["rm", next(chroot.path.glob("lib/ld-musl-*.so.1"))])
+    pmb.helpers.run.root(["rmdir", chroot / "native"])
+    pmb.helpers.run.root(["rm", next(chroot.path.glob("etc/ld-musl-*.path"))])
+    pmb.helpers.run.root(["rm", next(chroot.path.glob("lib/ld-musl-*.so.1"))])
 
 
 def mount_native_tools(args: PmbArgs, chroot: Chroot):
@@ -166,10 +166,10 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
         logging.info(f"({chroot}) mounting {binary}")
         if not pmb.helpers.mount.ismount(chroot / binary):
             # FIXME: wow we need a helper for this
-            pmb.helpers.run.root(args, ["touch", chroot / binary])
+            pmb.helpers.run.root(["touch", chroot / binary])
             pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False)
 
-    #pmb.helpers.run.root(args, ["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
+    #pmb.helpers.run.root(["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
 
 
 def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
@@ -184,12 +184,12 @@ def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
     if musl_link.is_symlink():
         return
 
-    pmb.helpers.run.root(args, ["ln", "-s", "/native/lib/" + musl, musl_link])
+    pmb.helpers.run.root(["ln", "-s", "/native/lib/" + musl, musl_link])
 
     # configure library search path for native tools
     ldconfig = "/native/lib:/native/usr/lib:/native/usr/local/lib"
     musl_path = f"/etc/{musl}".replace(".so.1", ".path")
-    pmb.helpers.run.root(args, ["sh", "-c", "echo "
+    pmb.helpers.run.root(["sh", "-c", "echo "
                                     f"{shlex.quote(ldconfig)} >> {chroot / musl_path}"])
 
 def remove_mnt_pmbootstrap(args: PmbArgs, chroot: Chroot):
@@ -205,4 +205,4 @@ def remove_mnt_pmbootstrap(args: PmbArgs, chroot: Chroot):
         return
 
     for path in list(mnt_dir.glob("*")) + [mnt_dir]:
-        pmb.helpers.run.root(args, ["rmdir", path])
+        pmb.helpers.run.root(["rmdir", path])
