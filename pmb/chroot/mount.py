@@ -125,7 +125,7 @@ def unmount_native_tools(args: PmbArgs, chroot: Chroot):
     if chroot == native:
         logging.warning(f"({chroot}) cannot unmount native tools from native chroot!")
 
-    tools = list(filter(lambda t: t.should_install(chroot.type), pmb.config.host_native_tools))
+    tools = list(filter(lambda t: t.should_install(chroot.type), host_native_tools))
     if not tools:
         return
 
@@ -147,7 +147,7 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
     if chroot == native:
         logging.warning(f"({chroot}) cannot mount native tools into native chroot!")
 
-    tools = list(filter(lambda t: t.should_install(chroot.type), pmb.config.host_native_tools))
+    tools = list(filter(lambda t: t.should_install(chroot.type), host_native_tools))
     if not tools:
         return
 
