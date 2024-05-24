@@ -97,7 +97,7 @@ def mount(args: PmbArgs, chroot: Chroot=Chroot.native()):
     for source, target in mountpoints.items():
         target_outer = chroot / target
         #raise RuntimeError("test")
-        pmb.helpers.mount.bind(args, source, target_outer)
+        pmb.helpers.mount.bind(source, target_outer)
 
 
 # Tools that should be mounted from a native chroot into a buildroot
@@ -132,9 +132,9 @@ def unmount_native_tools(args: PmbArgs, chroot: Chroot):
     # Unbind mount binaries from the native chroot into the target chroot
     for binary in sum(map(lambda t: t.paths, tools), []):
         logging.info(f"({chroot}) unmounting {binary}")
-        pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False, umount=True)
+        pmb.helpers.mount.bind(native / binary, chroot / binary, create_folders=False, umount=True)
 
-    pmb.helpers.mount.bind(args, native.path, chroot / "native", create_folders=False, umount=True)
+    pmb.helpers.mount.bind(native.path, chroot / "native", create_folders=False, umount=True)
     pmb.helpers.run.root(["rmdir", chroot / "native"])
     pmb.helpers.run.root(["rm", next(chroot.path.glob("etc/ld-musl-*.path"))])
     pmb.helpers.run.root(["rm", next(chroot.path.glob("lib/ld-musl-*.so.1"))])
@@ -167,7 +167,7 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
         if not pmb.helpers.mount.ismount(chroot / binary):
             # FIXME: wow we need a helper for this
             pmb.helpers.run.root(["touch", chroot / binary])
-            pmb.helpers.mount.bind(args, native / binary, chroot / binary, create_folders=False)
+            pmb.helpers.mount.bind(native / binary, chroot / binary, create_folders=False)
 
     #pmb.helpers.run.root(["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
 
@@ -175,7 +175,7 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
 def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
     source = Chroot.native().path
     target = chroot / "native"
-    pmb.helpers.mount.bind(args, source, target)
+    pmb.helpers.mount.bind(source, target)
 
     musl = next(source.glob("lib/ld-musl-*.so.1")).name
     musl_link = (chroot / "lib" / musl)
