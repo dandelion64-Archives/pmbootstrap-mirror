@@ -237,7 +237,6 @@ def install(args: PmbArgs, packages, chroot: Chroot, build=True):
 
     # Initialize chroot
     check_min_version(args, chroot)
-    pmb.chroot.init(args, chroot)
 
     packages_with_depends = pmb.parse.depends.recurse(args, packages, chroot)
     to_add, to_del = packages_split_to_add_del(packages_with_depends)
