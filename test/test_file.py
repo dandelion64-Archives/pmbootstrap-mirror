@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+from pmb.types import PmbArgs
 import pytest
 
 import pmb_test  # noqa
@@ -16,16 +17,16 @@ def args(request):
     import pmb.parse
     sys.argv = ["pmbootstrap.py", "chroot"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def test_file_is_older_than(args, tmpdir):
+def test_file_is_older_than(args: PmbArgs, tmpdir):
     # Create a file last modified 10s ago
     tempfile = str(tmpdir) + "/test"
-    pmb.helpers.run.user(args, ["touch", tempfile])
+    pmb.helpers.run.user(["touch", tempfile])
     past = time.time() - 10
     os.utime(tempfile, (-1, past))
 

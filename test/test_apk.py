@@ -1,20 +1,25 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import fnmatch
+from typing import List
 import pytest
 import sys
 
+from pmb.types import PathString
 import pmb_test  # noqa
 import pmb.build
 import pmb.chroot.apk
+from pmb.core import Chroot
 
+cmds_progress: List[PathString] = []
+cmds: List[PathString] = []
 
 @pytest.fixture
 def args(tmpdir, request):
     import pmb.parse
     sys.argv = ["pmbootstrap.py", "init"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
@@ -24,11 +29,11 @@ def test_install_build(monkeypatch, args):
     func = pmb.chroot.apk.install_build
     ret_apkindex_package = None
 
-    def fake_build_package(args, package, arch):
+    def fake_build_package(args: PmbArgs, package, arch):
         return "build-pkg"
     monkeypatch.setattr(pmb.build, "package", fake_build_package)
 
-    def fake_apkindex_package(args, package, arch, must_exist):
+    def fake_apkindex_package(args: PmbArgs, package, arch, must_exist):
         return ret_apkindex_package
     monkeypatch.setattr(pmb.parse.apkindex, "package", fake_apkindex_package)
 
@@ -88,14 +93,14 @@ def test_install_run_apk(monkeypatch, args):
     global cmds
 
     func = pmb.chroot.apk.install_run_apk
-    suffix = "chroot_native"
+    suffix = Chroot.native()
 
-    def fake_chroot_root(args, command, suffix):
+    def fake_chroot_root(args: PmbArgs, command, suffix):
         global cmds
         cmds += [command]
     monkeypatch.setattr(pmb.chroot, "root", fake_chroot_root)
 
-    def fake_apk_progress(args, command, chroot, suffix):
+    def fake_apk_progress(args: PmbArgs, command, chroot, suffix):
         global cmds_progress
         cmds_progress += [command]
     monkeypatch.setattr(pmb.helpers.apk, "apk_with_progress", fake_apk_progress)

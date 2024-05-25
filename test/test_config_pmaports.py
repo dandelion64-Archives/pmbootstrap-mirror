@@ -1,6 +1,7 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 """ Test pmb/config/pmaports.py """
+from pmb.types import PmbArgs
 import pytest
 import sys
 
@@ -18,13 +19,13 @@ def args(request):
     cfg = f"{pmb_test.const.testdata}/channels.cfg"
     sys.argv = ["pmbootstrap.py", "--config-channels", cfg, "init"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def test_switch_to_channel_branch(args, monkeypatch, tmpdir):
+def test_switch_to_channel_branch(args: PmbArgs, monkeypatch, tmpdir):
     path, run_git = pmb_test.git.prepare_tmpdir(args, monkeypatch, tmpdir)
     args.aports = path
 
@@ -46,11 +47,11 @@ def test_switch_to_channel_branch(args, monkeypatch, tmpdir):
     run_git(["checkout", "-b", "v20.05"])
     run_git(["checkout", "master"])
     assert func(args, "v20.05") is True
-    branch = pmb.helpers.git.rev_parse(args, path, extra_args=["--abbrev-ref"])
+    branch = pmb.helpers.git.rev_parse(path, extra_args=["--abbrev-ref"])
     assert branch == "v20.05"
 
 
-def test_read_config_channel(args, monkeypatch):
+def test_read_config_channel(args: PmbArgs, monkeypatch):
     channel = "edge"
 
     # Pretend to have a certain channel in pmaports.cfg

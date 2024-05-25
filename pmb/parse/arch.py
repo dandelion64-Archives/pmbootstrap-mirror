@@ -3,24 +3,12 @@
 import fnmatch
 import platform
 import pmb.config
-
+import pmb.parse.arch
 
 def alpine_native():
     machine = platform.machine()
 
     return machine_type_to_alpine(machine)
-
-
-def from_chroot_suffix(args, suffix):
-    if suffix == "native":
-        return pmb.config.arch_native
-    if suffix in [f"rootfs_{args.device}", f"installer_{args.device}"]:
-        return args.deviceinfo["arch"]
-    if suffix.startswith("buildroot_"):
-        return suffix.split("_", 1)[1]
-
-    raise ValueError("Invalid chroot suffix: " + suffix +
-                     " (wrong device chosen in 'init' step?)")
 
 
 def alpine_to_qemu(arch):

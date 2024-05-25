@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
 import sys
+from pmb.types import PmbArgs
 import pytest
 
 import pmb_test  # noqa
@@ -14,7 +15,7 @@ def args(request, tmpdir):
     import pmb.parse
     sys.argv = ["pmbootstrap.py", "chroot"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
 
@@ -41,9 +42,9 @@ def cache_apkindex(version):
     providers["hello-world"]["version"] = version
 
 
-def test_build_is_necessary(args):
+def test_build_is_necessary(args: PmbArgs):
     # Prepare APKBUILD and APKINDEX data
-    aport = pmb.helpers.pmaports.find(args, "hello-world")
+    aport = pmb.helpers.pmaports.find("hello-world")
     apkbuild = pmb.parse.apkbuild(f"{aport}/APKBUILD")
     apkbuild["pkgver"] = "1"
     apkbuild["pkgrel"] = "2"
@@ -66,18 +67,18 @@ def test_build_is_necessary(args):
     assert pmb.build.is_necessary(args, None, apkbuild, indexes) is False
 
 
-def test_build_is_necessary_no_binary_available(args):
+def test_build_is_necessary_no_binary_available(args: PmbArgs):
     """
     APKINDEX cache is set up to fake an empty APKINDEX, which means that the
     hello-world package has not been built yet.
     """
     indexes = list(pmb.helpers.other.cache["apkindex"].keys())
-    aport = pmb.helpers.pmaports.find(args, "hello-world")
+    aport = pmb.helpers.pmaports.find("hello-world")
     apkbuild = pmb.parse.apkbuild(f"{aport}/APKBUILD")
     assert pmb.build.is_necessary(args, None, apkbuild, indexes) is True
 
 
-def test_build_is_necessary_cant_build_pmaport_for_arch(args):
+def test_build_is_necessary_cant_build_pmaport_for_arch(args: PmbArgs):
     """ pmaport version is higher than Alpine's binary package, but pmaport
         can't be built for given arch. (#1897) """
 

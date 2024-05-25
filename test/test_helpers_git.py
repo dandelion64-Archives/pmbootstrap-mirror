@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
 import sys
+from pmb.types import PmbArgs
 import pytest
 import shutil
 
@@ -19,13 +20,13 @@ def args(request):
     cfg = f"{pmb_test.const.testdata}/channels.cfg"
     sys.argv = ["pmbootstrap.py", "--config-channels", cfg, "init"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def test_get_path(args):
+def test_get_path(args: PmbArgs):
     func = pmb.helpers.git.get_path
     args.work = "/wrk"
     args.aports = "/tmp/pmaports"
@@ -34,13 +35,13 @@ def test_get_path(args):
     assert func(args, "pmaports") == "/tmp/pmaports"
 
 
-def test_can_fast_forward(args, tmpdir):
+def test_can_fast_forward(args: PmbArgs, tmpdir):
     tmpdir = str(tmpdir)
     func = pmb.helpers.git.can_fast_forward
     branch_origin = "fake-branch-origin"
 
     def run_git(git_args):
-        pmb.helpers.run.user(args, ["git"] + git_args, tmpdir, "stdout")
+        pmb.helpers.run.user(["git"] + git_args, tmpdir, "stdout")
 
     # Create test git repo
     run_git(["init", "-b", "master", "."])
@@ -62,29 +63,29 @@ def test_can_fast_forward(args, tmpdir):
     assert str(e.value).startswith("Unexpected exit code")
 
 
-def test_clean_worktree(args, tmpdir):
+def test_clean_worktree(args: PmbArgs, tmpdir):
     tmpdir = str(tmpdir)
     func = pmb.helpers.git.clean_worktree
 
     def run_git(git_args):
-        pmb.helpers.run.user(args, ["git"] + git_args, tmpdir, "stdout")
+        pmb.helpers.run.user(["git"] + git_args, tmpdir, "stdout")
 
     # Create test git repo
     run_git(["init", "-b", "master", "."])
     run_git(["commit", "--allow-empty", "-m", "commit on master"])
 
     assert func(args, tmpdir) is True
-    pmb.helpers.run.user(args, ["touch", "test"], tmpdir)
+    pmb.helpers.run.user(["touch", "test"], tmpdir)
     assert func(args, tmpdir) is False
 
 
-def test_get_upstream_remote(args, monkeypatch, tmpdir):
+def test_get_upstream_remote(args: PmbArgs, monkeypatch, tmpdir):
     tmpdir = str(tmpdir)
     func = pmb.helpers.git.get_upstream_remote
     name_repo = "test"
 
     # Override get_path()
-    def get_path(args, name_repo):
+    def get_path(args: PmbArgs, name_repo):
         return tmpdir
     monkeypatch.setattr(pmb.helpers.git, "get_path", get_path)
 
@@ -94,7 +95,7 @@ def test_get_upstream_remote(args, monkeypatch, tmpdir):
     monkeypatch.setattr(pmb.config, "git_repos", git_repos)
 
     def run_git(git_args):
-        pmb.helpers.run.user(args, ["git"] + git_args, tmpdir, "stdout")
+        pmb.helpers.run.user(["git"] + git_args, tmpdir, "stdout")
 
     # Create git repo
     run_git(["init", "-b", "master", "."])
@@ -109,7 +110,7 @@ def test_get_upstream_remote(args, monkeypatch, tmpdir):
     assert func(args, name_repo) == "hello"
 
 
-def test_parse_channels_cfg(args):
+def test_parse_channels_cfg(args: PmbArgs):
     exp = {"meta": {"recommended": "edge"},
            "channels": {"edge": {"description": "Rolling release channel",
                                  "branch_pmaports": "master",
@@ -126,11 +127,11 @@ def test_parse_channels_cfg(args):
     assert pmb.helpers.git.parse_channels_cfg(args) == exp
 
 
-def test_pull_non_existing(args):
-    assert pmb.helpers.git.pull(args, "non-existing-repo-name") == 1
+def test_pull_non_existing(args: PmbArgs):
+    assert pmb.helpers.git.pull("non-existing-repo-name") == 1
 
 
-def test_pull(args, monkeypatch, tmpdir):
+def test_pull(args: PmbArgs, monkeypatch, tmpdir):
     """ Test pmb.helpers.git.pull """
     path, run_git = pmb_test.git.prepare_tmpdir(args, monkeypatch, tmpdir)
 

@@ -2,23 +2,26 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
+from pathlib import Path
 import time
 
+from pmb.types import PmbArgs
 import pmb.helpers.run
+import pmb.helpers.pmaports
 
 
-def replace(path, old, new):
+def replace(path: Path, old: str, new: str):
     text = ""
-    with open(path, "r", encoding="utf-8") as handle:
+    with path.open("r", encoding="utf-8") as handle:
         text = handle.read()
 
     text = text.replace(old, new)
 
-    with open(path, "w", encoding="utf-8") as handle:
+    with path.open("w", encoding="utf-8") as handle:
         handle.write(text)
 
 
-def replace_apkbuild(args, pkgname, key, new, in_quotes=False):
+def replace_apkbuild(args: PmbArgs, pkgname, key, new, in_quotes=False):
     """Replace one key=value line in an APKBUILD and verify it afterwards.
 
     :param pkgname: package name, e.g. "hello-world"
@@ -27,7 +30,7 @@ def replace_apkbuild(args, pkgname, key, new, in_quotes=False):
     :param in_quotes: expect the value to be in quotation marks ("")
     """
     # Read old value
-    path = pmb.helpers.pmaports.find(args, pkgname) + "/APKBUILD"
+    path = pmb.helpers.pmaports.find(pkgname) / "APKBUILD"
     apkbuild = pmb.parse.apkbuild(path)
     old = apkbuild[key]
 
@@ -87,15 +90,15 @@ def is_older_than(path, seconds):
     return lastmod + seconds < time.time()
 
 
-def symlink(args, file, link):
+def symlink(args: PmbArgs, file: Path, link: Path):
     """Check if the symlink is already present, otherwise create it."""
     if os.path.exists(link):
         if (os.path.islink(link) and
                 os.path.realpath(os.readlink(link)) == os.path.realpath(file)):
             return
-        raise RuntimeError("File exists: " + link)
-    elif os.path.islink(link):
-        os.unlink(link)
+        raise RuntimeError(f"File exists: {link}")
+    elif link.is_symlink():
+        link.unlink()
 
     # Create the symlink
-    pmb.helpers.run.user(args, ["ln", "-s", file, link])
+    pmb.helpers.run.user(["ln", "-s", file, link])

@@ -1,18 +1,20 @@
 # Copyright 2023 Attila Szollosi
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
+from pathlib import Path
+from pmb.helpers import logging
 
 import pmb.chroot
 import pmb.config.pmaports
+from pmb.types import PmbArgs
 import pmb.flasher
 import pmb.helpers.frontend
 
 
-def create_zip(args, suffix):
+def create_zip(args: PmbArgs, suffix):
     """
     Create android recovery compatible installer zip.
     """
-    zip_root = "/var/lib/postmarketos-android-recovery-installer/"
+    zip_root = Path("/var/lib/postmarketos-android-recovery-installer/")
     rootfs = "/mnt/rootfs_" + args.device
     flavor = pmb.helpers.frontend._parse_flavor(args)
     method = args.deviceinfo["flash_method"]
@@ -23,7 +25,7 @@ def create_zip(args, suffix):
                            ["postmarketos-android-recovery-installer"],
                            suffix)
 
-    logging.info("(" + suffix + ") create recovery zip")
+    logging.info(f"({suffix}) create recovery zip")
 
     for key in vars:
         pmb.flasher.check_partition_blacklist(args, key, vars[key])
@@ -43,15 +45,15 @@ def create_zip(args, suffix):
     }
 
     # Backwards compatibility with old mkinitfs (pma#660)
-    pmaports_cfg = pmb.config.pmaports.read_config(args)
+    pmaports_cfg = pmb.config.pmaports.read_config()
     if pmaports_cfg.get("supported_mkinitfs_without_flavors", False):
         options["FLAVOR"] = ""
     else:
         options["FLAVOR"] = f"-{flavor}" if flavor is not None else "-"
 
     # Write to a temporary file
-    config_temp = args.work + "/chroot_" + suffix + "/tmp/install_options"
-    with open(config_temp, "w") as handle:
+    config_temp = suffix / "tmp/install_options"
+    with config_temp.open("w") as handle:
         for key, value in options.items():
             if isinstance(value, bool):
                 value = str(value).lower()
@@ -69,4 +71,4 @@ def create_zip(args, suffix):
         ["gzip", "-f1", "rootfs.tar"],
         ["build-recovery-zip", args.device]]
     for command in commands:
-        pmb.chroot.root(args, command, suffix, zip_root)
+        pmb.chroot.root(command, suffix, working_dir=zip_root)

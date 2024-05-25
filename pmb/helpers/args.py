@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import copy
 import os
+from pathlib import Path
 import pmb.config
+from pmb.core.context import Context
+from pmb.types import PmbArgs
 import pmb.helpers.git
+import pmb.helpers.args
 
 """This file constructs the args variable, which is passed to almost all
    functions in the pmbootstrap code base. Here's a listing of the kind of
@@ -29,7 +33,7 @@ import pmb.helpers.git
        Examples:
        args.aports ("$WORK/cache_git/pmaports", override with --aports)
        args.device ("samsung-i9100", "qemu-amd64" etc.)
-       args.work ("/home/user/.local/var/pmbootstrap", override with --work)
+       get_context().config.work ("/home/user/.local/var/pmbootstrap", override with --work)
 
     3. Parsed configs
        Similar to the cache above, specific config files get parsed and added
@@ -43,29 +47,7 @@ import pmb.helpers.git
 """
 
 
-def fix_mirrors_postmarketos(args):
-    """Fix args.mirrors_postmarketos when it is supposed to be empty or the default value.
-
-    In pmb/parse/arguments.py, we set the -mp/--mirror-pmOS argument to
-    action="append" and start off with an empty list. That way, users can
-    specify multiple custom mirrors by specifying -mp multiple times on the
-    command line. Here we fix the default and no mirrors case.
-
-    NOTE: we don't use nargs="+", because it does not play nicely with
-    subparsers: <https://bugs.python.org/issue9338>
-    """
-    # -mp not specified: use default mirrors
-    if not args.mirrors_postmarketos:
-        cfg = pmb.config.load(args)
-        args.mirrors_postmarketos = \
-            cfg["pmbootstrap"]["mirrors_postmarketos"].split(",")
-
-    # -mp="": use no postmarketOS mirrors (build everything locally)
-    if args.mirrors_postmarketos == [""]:
-        args.mirrors_postmarketos = []
-
-
-def check_pmaports_path(args):
+def check_pmaports_path(args: PmbArgs):
     """Make sure that args.aports exists when it was overridden by --aports.
 
     Without this check, 'pmbootstrap init' would start cloning the
@@ -73,31 +55,31 @@ def check_pmaports_path(args):
     """
     if args.from_argparse.aports and not os.path.exists(args.aports):
         raise ValueError("pmaports path (specified with --aports) does"
-                         " not exist: " + args.aports)
+                        f" not exist: {args.aports}")
 
 
-def replace_placeholders(args):
-    """Replace $WORK and ~ (for path variables) in variables from any config.
+# def replace_placeholders(args: PmbArgs):
+#     """Replace $WORK and ~ (for path variables) in variables from any config.
 
-    (user's config file, default config settings or config parameters specified on commandline)
-    """
-    # Replace $WORK
-    for key, value in pmb.config.defaults.items():
-        if key not in args:
-            continue
-        old = getattr(args, key)
-        if isinstance(old, str):
-            setattr(args, key, old.replace("$WORK", args.work))
+#     (user's config file, default config settings or config parameters specified on commandline)
+#     """
+#     # Replace $WORK
+#     for key, value in pmb.config.defaults.items():
+#         if key not in args:
+#             continue
+#         old = getattr(args, key)
+#         if isinstance(old, str):
+#             setattr(args, key, old.replace("$WORK", str(get_context().config.work)))
 
-    # Replace ~ (path variables only)
-    for key in ["aports", "config", "log", "work"]:
-        if key in args:
-            setattr(args, key, os.path.expanduser(getattr(args, key)))
+#     # Replace ~ (path variables only)
+#     for key in ["aports", "config", "work"]:
+#         if key in args:
+#             setattr(args, key, Path(getattr(args, key)).expanduser())
 
 
-def add_deviceinfo(args):
+def add_deviceinfo(args: PmbArgs):
     """Add and verify the deviceinfo (only after initialization)"""
-    setattr(args, "deviceinfo", pmb.parse.deviceinfo(args))
+    setattr(args, "deviceinfo", pmb.parse.deviceinfo())
     arch = args.deviceinfo["arch"]
     if (arch != pmb.config.arch_native and
             arch not in pmb.config.build_device_architectures):
@@ -106,12 +88,30 @@ def add_deviceinfo(args):
                          " <https://postmarketos.org/newarch>")
 
 
-def init(args):
+def init(args: PmbArgs) -> PmbArgs:
     # Basic initialization
-    fix_mirrors_postmarketos(args)
-    pmb.config.merge_with_args(args)
-    replace_placeholders(args)
-    pmb.helpers.other.init_cache()
+    config = pmb.config.load(args)
+    # pmb.config.merge_with_args(args)
+    # replace_placeholders(args)
+
+    # Configure runtime context
+    context = Context(config)
+    context.command_timeout = args.timeout
+    context.details_to_stdout = args.details_to_stdout
+    context.quiet = args.quiet
+    context.offline = args.offline
+    context.command = args.action
+    context.cross = args.cross
+    if args.mirrors_postmarketos:
+        context.config.mirrors_postmarketos = args.mirrors_postmarketos
+    if args.mirror_alpine:
+        context.config.mirror_alpine = args.mirror_alpine
+    if args.aports:
+        print(f"Using pmaports from: {args.aports}")
+        context.config.aports = args.aports
+
+    # Initialize context
+    pmb.core.set_context(context)
 
     # Initialize logs (we could raise errors below)
     pmb.helpers.logging.init(args)
@@ -120,14 +120,27 @@ def init(args):
     check_pmaports_path(args)
     if args.action not in ["init", "checksum", "config", "bootimg_analyze", "log",
                            "pull", "shutdown", "zap"]:
-        pmb.config.pmaports.read_config(args)
+        pmb.config.pmaports.read_config()
         add_deviceinfo(args)
-        pmb.helpers.git.parse_channels_cfg(args)
+        pmb.helpers.git.parse_channels_cfg(config.aports)
+        context.device_arch = args.deviceinfo["arch"]
+
+    # Remove attributes from args so they don't get used by mistake
+    delattr(args, "timeout")
+    delattr(args, "details_to_stdout")
+    delattr(args, "log")
+    delattr(args, "quiet")
+    delattr(args, "offline")
+    delattr(args, "aports")
+    delattr(args, "mirrors_postmarketos")
+    delattr(args, "mirror_alpine")
+    # args.work is deprecated!
+    delattr(args, "work")
 
     return args
 
 
-def update_work(args, work):
+def update_work(args: PmbArgs, work):
     """Update the work path in args.work and wherever $WORK was used."""
     # Start with the unmodified args from argparse
     args_new = copy.deepcopy(args.from_argparse)

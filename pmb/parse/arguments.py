@@ -3,10 +3,13 @@
 import argparse
 import copy
 import os
+from pathlib import Path
 import sys
 
+from pmb.types import Config, PmbArgs
+
 try:
-    import argcomplete
+    import argcomplete # type:ignore[import-untyped]
 except ImportError:
     pass
 
@@ -109,7 +112,7 @@ def arguments_install(subparser):
                        help="do not create an image file, instead"
                             " write to the given block device (SD card, USB"
                             " stick, etc.), for example: '/dev/mmcblk0'",
-                       metavar="BLOCKDEV")
+                       metavar="BLOCKDEV", type=lambda x: Path(x))
     group.add_argument("--android-recovery-zip",
                        help="generate TWRP flashable zip (recommended read:"
                             " https://postmarketos.org/recoveryzip)",
@@ -205,7 +208,8 @@ def arguments_export(subparser):
 
     ret.add_argument("export_folder", help="export folder, defaults to"
                                            " /tmp/postmarketOS-export",
-                     default="/tmp/postmarketOS-export", nargs="?")
+                     default=Path("/tmp/postmarketOS-export"), nargs="?",
+                     type=lambda x: Path(x))
     ret.add_argument("--odin", help="odin flashable tar"
                                     " (boot.img/kernel+initramfs only)",
                      action="store_true", dest="odin_flashable_tar")
@@ -593,7 +597,6 @@ def package_completer(prefix, action, parser=None, parsed_args=None):
     args = parsed_args
     pmb.config.merge_with_args(args)
     pmb.helpers.args.replace_placeholders(args)
-    pmb.helpers.other.init_cache()
     packages = set(
         package for package in pmb.helpers.pmaports.get_list(args)
         if package.startswith(prefix))
@@ -634,7 +637,8 @@ def get_parser():
     parser = argparse.ArgumentParser(prog="pmbootstrap")
     arch_native = pmb.config.arch_native
     arch_choices = set(pmb.config.build_device_architectures + [arch_native])
-    mirrors_pmos_default = pmb.config.defaults["mirrors_postmarketos"]
+    default_config = Config()
+    mirrors_pmos_default = ",".join(default_config.mirrors_postmarketos)
 
     # Other
     parser.add_argument("-V", "--version", action="version",
@@ -643,17 +647,14 @@ def get_parser():
                         default=pmb.config.defaults["config"],
                         help="path to pmbootstrap.cfg file (default in"
                              " ~/.config/)")
-    parser.add_argument("--config-channels",
-                        help="path to channels.cfg (which is by default"
-                             " read from pmaports.git, origin/master branch)")
     parser.add_argument("-mp", "--mirror-pmOS", dest="mirrors_postmarketos",
                         help="postmarketOS mirror, disable with: -mp='',"
                              " specify multiple with: -mp='one' -mp='two',"
                              f" default: {mirrors_pmos_default}",
                         metavar="URL", action="append", default=[])
     parser.add_argument("-m", "--mirror-alpine", dest="mirror_alpine",
-                        help="Alpine Linux mirror, default: " +
-                             pmb.config.defaults["mirror_alpine"],
+                        help="Alpine Linux mirror, default: "
+                            f"{default_config.mirror_alpine}",
                         metavar="URL")
     parser.add_argument("-j", "--jobs", help="parallel jobs when compiling")
     parser.add_argument("-E", "--extra-space",
@@ -924,7 +925,8 @@ def get_parser():
     # Action: bootimg_analyze
     bootimg_analyze = sub.add_parser("bootimg_analyze", help="Extract all the"
                                      " information from an existing boot.img")
-    bootimg_analyze.add_argument("path", help="path to the boot.img")
+    bootimg_analyze.add_argument("path", help="path to the boot.img",
+                                 type=lambda x: Path(x))
     bootimg_analyze.add_argument("--force", "-f", action="store_true",
                                  help="force even if the file seems to be"
                                       " invalid")
@@ -941,7 +943,7 @@ def get_parser():
 def arguments():
 
     # Parse and extend arguments (also backup unmodified result from argparse)
-    args = get_parser().parse_args()
+    args: PmbArgs = get_parser().parse_args() # type: ignore
 
     setattr(args, "from_argparse", copy.deepcopy(args))
     setattr(args.from_argparse, "from_argparse", args.from_argparse)

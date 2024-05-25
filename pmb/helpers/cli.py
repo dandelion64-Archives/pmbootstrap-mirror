@@ -1,13 +1,15 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import datetime
-import logging
+from pmb.helpers import logging
 import os
 import re
 import readline
 import sys
 
 import pmb.config
+from pmb.types import PmbArgs
+from pmb.core import get_context
 
 
 class ReadlineTabCompleter:
@@ -96,7 +98,7 @@ def ask(question="Continue?", choices=["y", "n"], default="n",
                       validation_regex + "). Please try again.")
 
 
-def confirm(args, question="Continue?", default=False, no_assumptions=False):
+def confirm(args: PmbArgs, question="Continue?", default=False, no_assumptions=False):
     """Convenience wrapper around ask for simple yes-no questions with validation.
 
     :param no_assumptions: ask for confirmation, even if "pmbootstrap -y' is set
@@ -110,7 +112,7 @@ def confirm(args, question="Continue?", default=False, no_assumptions=False):
     return answer == "y"
 
 
-def progress_print(args, progress):
+def progress_print(progress):
     """Print a snapshot of a progress bar to STDOUT.
 
     Call progress_flush to end  printing progress and clear the line. No output is printed in
@@ -127,16 +129,16 @@ def progress_print(args, progress):
     filled = "\u2588" * chars
     empty = " " * (width - chars)
     percent = int(progress * 100)
-    if pmb.config.is_interactive and not args.details_to_stdout:
+    if pmb.config.is_interactive and not get_context().details_to_stdout:
         sys.stdout.write(f"\u001b7{percent:>3}% {filled}{empty}")
         sys.stdout.flush()
         sys.stdout.write("\u001b8\u001b[0K")
 
 
-def progress_flush(args):
+def progress_flush():
     """Finish printing a progress bar.
 
     This will erase the line. Does nothing in non-interactive mode.
     """
-    if pmb.config.is_interactive and not args.details_to_stdout:
+    if pmb.config.is_interactive and not get_context().details_to_stdout:
         sys.stdout.flush()

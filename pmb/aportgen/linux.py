@@ -1,12 +1,14 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
+from pmb.core import get_context
+from pmb.types import PmbArgs
 import pmb.helpers.run
 import pmb.aportgen.core
 import pmb.parse.apkindex
 import pmb.parse.arch
 
 
-def generate_apkbuild(args, pkgname, deviceinfo, patches):
+def generate_apkbuild(args: PmbArgs, pkgname, deviceinfo, patches):
     device = "-".join(pkgname.split("-")[1:])
     carch = pmb.parse.arch.alpine_to_kernel(deviceinfo["arch"])
 
@@ -57,7 +59,7 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
                 "$pkgdir"/boot/dt.img"""
 
     makedepends.sort()
-    makedepends = ("\n" + " " * 12).join(makedepends)
+    makedepends_fmt = ("\n" + " " * 12).join(makedepends)
     patches = ("\n" + " " * 12).join(patches)
     content = f"""\
         # Reference: <https://postmarketos.org/vendorkernel>
@@ -74,7 +76,7 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
         license="GPL-2.0-only"
         options="!strip !check !tracedeps pmb:cross-native"
         makedepends="
-            {makedepends}
+            {makedepends_fmt}
         "
 
         # Source
@@ -104,17 +106,18 @@ def generate_apkbuild(args, pkgname, deviceinfo, patches):
         """
 
     # Write the file
-    with open(f"{args.work}/aportgen/APKBUILD", "w", encoding="utf-8") as hndl:
+    with (get_context().config.work / "aportgen/APKBUILD").open("w", encoding="utf-8") as hndl:
         for line in content.rstrip().split("\n"):
             hndl.write(line[8:].replace(" " * 4, "\t") + "\n")
 
 
-def generate(args, pkgname):
+def generate(args: PmbArgs, pkgname):
     device = "-".join(pkgname.split("-")[1:])
-    deviceinfo = pmb.parse.deviceinfo(args, device)
+    deviceinfo = pmb.parse.deviceinfo(device)
+    work = get_context().config.work
 
     # Symlink commonly used patches
-    pmb.helpers.run.user(args, ["mkdir", "-p", args.work + "/aportgen"])
+    pmb.helpers.run.user(["mkdir", "-p", work / "aportgen"])
     patches = [
         "gcc7-give-up-on-ilog2-const-optimizations.patch",
         "gcc8-fix-put-user.patch",
@@ -122,8 +125,8 @@ def generate(args, pkgname):
         "kernel-use-the-gnu89-standard-explicitly.patch",
     ]
     for patch in patches:
-        pmb.helpers.run.user(args, ["ln", "-s",
+        pmb.helpers.run.user(["ln", "-s",
                                     "../../.shared-patches/linux/" + patch,
-                                    args.work + "/aportgen/" + patch])
+                                    (work / "aportgen" / patch)])
 
     generate_apkbuild(args, pkgname, deviceinfo, patches)

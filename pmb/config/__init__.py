@@ -2,16 +2,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import multiprocessing
 import os
+from pathlib import Path
+from pmb.types import AportGenEntry, PathString
 import pmb.parse.arch
 import sys
-from typing import List
+from typing import Dict, List, Sequence, TypedDict
 
 #
 # Exported functions
 #
-from pmb.config.load import load, sanity_checks
-from pmb.config.save import save
-from pmb.config.merge_with_args import merge_with_args
+# FIXME (#2324): this sucks, we should re-organise this and not rely on "lifting"
+# this functions this way
+from pmb.config.load import load, sanity_checks, save, get
 from pmb.config.sudo import which_sudo
 from pmb.config.other import is_systemd_selected
 
@@ -19,8 +21,8 @@ from pmb.config.other import is_systemd_selected
 #
 # Exported variables (internal configuration)
 #
-pmb_src = os.path.normpath(os.path.realpath(__file__) + "/../../..")
-apk_keys_path = pmb_src + "/pmb/data/keys"
+pmb_src: Path = Path(Path(__file__) / "../../..").resolve()
+apk_keys_path: Path = (pmb_src / "pmb/data/keys")
 arch_native = pmb.parse.arch.alpine_native()
 
 # apk-tools minimum version
@@ -64,7 +66,7 @@ required_programs = [
 ]
 
 
-def sudo(cmd: List[str]) -> List[str]:
+def sudo(cmd: Sequence[PathString]) -> Sequence[PathString]:
     """Adapt a command to run as root."""
     sudo = which_sudo()
     if sudo:
@@ -103,42 +105,7 @@ config_keys = [
     "work",
 ]
 
-# Config file/commandline default values
-# $WORK gets replaced with the actual value for args.work (which may be
-# overridden on the commandline)
 defaults = {
-    # This first chunk matches config_keys
-    "aports": "$WORK/cache_git/pmaports",
-    "boot_size": "256",
-    "build_default_device_arch": False,
-    "build_pkgs_on_install": True,
-    "ccache_size": "5G",
-    "device": "qemu-amd64",
-    "extra_packages": "none",
-    "extra_space": "0",
-    "hostname": "",
-    "is_default_channel": True,
-    "jobs": str(multiprocessing.cpu_count() + 1),
-    "kernel": "stable",
-    "keymap": "",
-    "locale": "en_US.UTF-8",
-    # NOTE: mirrors use http by default to leverage caching
-    "mirror_alpine": "http://dl-cdn.alpinelinux.org/alpine/",
-    # NOTE: mirrors_postmarketos variable type is supposed to be
-    #       comma-separated string, not a python list or any other type!
-    "mirrors_postmarketos": "http://mirror.postmarketos.org/postmarketos/",
-    "qemu_redir_stdio": False,
-    "ssh_key_glob": "~/.ssh/id_*.pub",
-    "ssh_keys": False,
-    "sudo_timer": False,
-    "systemd": "default",
-    "timezone": "GMT",
-    "ui": "console",
-    "ui_extras": False,
-    "user": "user",
-    "work": os.path.expanduser("~") + "/.local/var/pmbootstrap",
-
-    # These values are not part of config_keys
     "cipher": "aes-xts-plain64",
     "config": (os.environ.get('XDG_CONFIG_HOME') or
                os.path.expanduser("~/.config")) + "/pmbootstrap.cfg",
@@ -147,7 +114,6 @@ defaults = {
     # times on slower devices due to host systems being MUCH faster than the
     # target device (see issue #429).
     "iter_time": "200",
-    "log": "$WORK/log.txt",
 }
 
 allowed_values = {
@@ -211,7 +177,7 @@ chroot_path = ":".join([
 chroot_host_path = os.environ["PATH"] + ":/usr/sbin/"
 
 # Folders that get mounted inside the chroot
-# $WORK gets replaced with args.work
+# $WORK gets replaced with get_context().config.work
 # $ARCH gets replaced with the chroot architecture (eg. x86_64, armhf)
 # $CHANNEL gets replaced with the release channel (e.g. edge, v21.03)
 # Use no more than one dir after /mnt/pmbootstrap, see remove_mnt_pmbootstrap.
@@ -935,10 +901,10 @@ flash_methods = [
 # These folders will be mounted at the same location into the native
 # chroot, before the flash programs get started.
 flash_mount_bind = [
-    "/sys/bus/usb/devices/",
-    "/sys/dev/",
-    "/sys/devices/",
-    "/dev/bus/usb/"
+    Path("/sys/bus/usb/devices/"),
+    Path("/sys/dev/"),
+    Path("/sys/devices/"),
+    Path("/dev/bus/usb/"),
 ]
 
 """
@@ -957,7 +923,7 @@ Fastboot specific: $KERNEL_CMDLINE
 Heimdall specific: $PARTITION_INITFS
 uuu specific: $UUU_SCRIPT
 """
-flashers = {
+flashers: Dict[str, Dict[str, bool | List[str] | Dict[str, List[List[str]]]]] = {
     "fastboot": {
         "depends": [],  # pmaports.cfg: supported_fastboot_depends
         "actions": {
@@ -1108,14 +1074,16 @@ flashers = {
 # GIT
 #
 git_repos = {
-    "aports_upstream": "https://gitlab.alpinelinux.org/alpine/aports.git",
-    "pmaports": "https://gitlab.com/postmarketOS/pmaports.git",
+    "aports_upstream": ["https://gitlab.alpinelinux.org/alpine/aports.git",
+                        "git@gitlab.alpinelinux.org:alpine/aports.git"],
+    "pmaports": ["https://gitlab.com/postmarketOS/pmaports.git",
+                 "git@gitlab.com:postmarketos/pmaports.git"],
 }
 
 #
 # APORTGEN
 #
-aportgen = {
+aportgen: Dict[str, AportGenEntry] = {
     "cross": {
         "prefixes": ["busybox-static", "gcc", "musl", "grub-efi"],
         "confirm_overwrite": False,

@@ -1,18 +1,21 @@
 # Copyright 2024 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
+from pmb.core.chroot import Chroot
+from pmb.helpers import logging
 import glob
 
 import pmb.config.pmaports
 import pmb.helpers.repo
+from pmb.types import PmbArgs
+from pmb.core import get_context
 
 
 progress_done = 0
 progress_total = 0
-progress_step = None
+progress_step: str
 
 
-def get_arch(args):
+def get_arch(args: PmbArgs):
     if args.arch:
         return args.arch
 
@@ -22,8 +25,8 @@ def get_arch(args):
     return pmb.config.arch_native
 
 
-def check_repo_arg(args):
-    cfg = pmb.config.pmaports.read_config_repos(args)
+def check_repo_arg(args: PmbArgs):
+    cfg = pmb.config.pmaports.read_config_repos()
     repo = args.repository
 
     if repo in cfg:
@@ -38,9 +41,9 @@ def check_repo_arg(args):
                      " current branch")
 
 
-def check_existing_pkgs(args, arch):
-    channel = pmb.config.pmaports.read_config(args)["channel"]
-    path = f"{args.work}/packages/{channel}/{arch}"
+def check_existing_pkgs(args: PmbArgs, arch):
+    channel = pmb.config.pmaports.read_config()["channel"]
+    path = get_context().config.work / "packages" / channel / arch
 
     if glob.glob(f"{path}/*"):
         logging.info(f"Packages path: {path}")
@@ -54,8 +57,8 @@ def check_existing_pkgs(args, arch):
         raise RuntimeError(f"{msg}!")
 
 
-def get_steps(args):
-    cfg = pmb.config.pmaports.read_config_repos(args)
+def get_steps(args: PmbArgs):
+    cfg = pmb.config.pmaports.read_config_repos()
     prev_step = 0
     ret = {}
 
@@ -73,7 +76,7 @@ def get_steps(args):
     return ret
 
 
-def get_suffix(args, arch):
+def get_suffix(args: PmbArgs, arch):
     if pmb.parse.arch.cpu_emulation_required(arch):
         return f"buildroot_{arch}"
     return "native"
@@ -88,7 +91,7 @@ def get_packages(bootstrap_line):
     return ret
 
 
-def set_progress_total(args, steps, arch):
+def set_progress_total(args: PmbArgs, steps, arch):
     global progress_total
 
     progress_total = 0
@@ -114,7 +117,7 @@ def log_progress(msg):
     progress_done += 1
 
 
-def run_steps(args, steps, arch, suffix):
+def run_steps(args: PmbArgs, steps, arch, chroot: Chroot):
     global progress_step
 
     for step, bootstrap_line in steps.items():
@@ -127,14 +130,14 @@ def run_steps(args, steps, arch, suffix):
         if "[usr_merge]" in bootstrap_line:
             usr_merge = pmb.chroot.UsrMerge.ON
 
-        if suffix != "native":
+        if chroot != Chroot.native():
             log_progress(f"initializing native chroot (merge /usr: {usr_merge.name})")
             # Native chroot needs pmOS binary package repo for cross compilers
-            pmb.chroot.init(args, "native", usr_merge)
+            pmb.chroot.init(Chroot.native(), usr_merge)
 
-        log_progress(f"initializing {suffix} chroot (merge /usr: {usr_merge.name})")
+        log_progress(f"initializing {chroot} chroot (merge /usr: {usr_merge.name})")
         # Initialize without pmOS binary package repo
-        pmb.chroot.init(args, suffix, usr_merge, postmarketos_mirror=False)
+        pmb.chroot.init(chroot, usr_merge, postmarketos_mirror=False)
 
         for package in get_packages(bootstrap_line):
             log_progress(f"building {package}")
@@ -145,7 +148,7 @@ def run_steps(args, steps, arch, suffix):
     log_progress("bootstrap complete!")
 
 
-def main(args):
+def main(args: PmbArgs):
     check_repo_arg(args)
 
     arch = get_arch(args)
@@ -172,16 +175,16 @@ def require_bootstrap_error(repo, arch, trigger_str):
                        " and then try again.")
 
 
-def require_bootstrap(args, arch, trigger_str):
+def require_bootstrap(args: PmbArgs, arch, trigger_str):
     """
     Check if repo_bootstrap was done, if any is needed.
 
     :param arch: for which architecture
     :param trigger_str: message for the user to understand what caused this
     """
-    if pmb.config.other.is_systemd_selected(args):
-        pmb.helpers.repo.update(args, arch)
-        pkg = pmb.parse.apkindex.package(args, "postmarketos-base-systemd",
+    if pmb.config.other.is_systemd_selected(get_context().config):
+        pmb.helpers.repo.update(arch)
+        pkg = pmb.parse.apkindex.package("postmarketos-base-systemd",
                                          arch, False)
         if not pkg:
             require_bootstrap_error("systemd", arch, trigger_str)

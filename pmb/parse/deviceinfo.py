@@ -1,9 +1,12 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import copy
-import logging
+from typing import Dict
+from pmb.core import get_context
+from pmb.helpers import logging
 import os
 import pmb.config
+from pmb.types import PmbArgs
 import pmb.helpers.devices
 
 
@@ -70,7 +73,7 @@ def sanity_check(info, path):
                            f" and try again: {path}")
 
 
-def _parse_kernel_suffix(args, info, device, kernel):
+def _parse_kernel_suffix(info, device, kernel):
     """
     Remove the kernel suffix (as selected in 'pmbootstrap init') from
     deviceinfo variables. Related:
@@ -90,7 +93,7 @@ def _parse_kernel_suffix(args, info, device, kernel):
     # Do nothing if the configured kernel isn't available in the kernel (e.g.
     # after switching from device with multiple kernels to device with only one
     # kernel)
-    kernels = pmb.parse._apkbuild.kernels(args, device)
+    kernels = pmb.parse._apkbuild.kernels(device)
     if not kernels or kernel not in kernels:
         logging.verbose(f"parse_kernel_suffix: {kernel} not in {kernels}")
         return info
@@ -111,23 +114,26 @@ def _parse_kernel_suffix(args, info, device, kernel):
     return ret
 
 
-def deviceinfo(args, device=None, kernel=None):
+# FIXME (#2324): Make deviceinfo a type! (class!!!)
+def deviceinfo(device=None, kernel=None) -> Dict[str, str]:
     """
     :param device: defaults to args.device
     :param kernel: defaults to args.kernel
     """
+    context = get_context()
     if not device:
-        device = args.device
+        device = context.config.device
     if not kernel:
-        kernel = args.kernel
+        kernel = context.config.kernel
 
-    if not os.path.exists(args.aports):
-        logging.fatal(f"Aports directory is missing, expected: {args.aports}")
+    aports = context.config.aports
+    if not aports.exists():
+        logging.fatal(f"Aports directory is missing, expected: {aports}")
         logging.fatal("Please provide a path to the aports directory using the"
                       " -p flag")
         raise RuntimeError("Aports directory missing")
 
-    path = pmb.helpers.devices.find_path(args, device, 'deviceinfo')
+    path = pmb.helpers.devices.find_path(device, 'deviceinfo')
     if not path:
         raise RuntimeError(
             "Device '" + device + "' not found. Run 'pmbootstrap init' to"
@@ -151,6 +157,6 @@ def deviceinfo(args, device=None, kernel=None):
         if key not in ret:
             ret[key] = ""
 
-    ret = _parse_kernel_suffix(args, ret, device, kernel)
+    ret = _parse_kernel_suffix(ret, device, kernel)
     sanity_check(ret, path)
     return ret

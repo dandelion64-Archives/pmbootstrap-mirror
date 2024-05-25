@@ -1,6 +1,7 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import sys
+from pmb.types import PmbArgs
 import pytest
 
 import pmb_test  # noqa
@@ -13,17 +14,17 @@ def args(request):
     import pmb.parse
     sys.argv = ["pmbootstrap", "init"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def test_helpers_package_get_pmaports_and_cache(args, monkeypatch):
+def test_helpers_package_get_pmaports_and_cache(args: PmbArgs, monkeypatch):
     """ Test pmb.helpers.package.get(): find in pmaports, use cached result """
 
     # Fake APKBUILD data
-    def stub(args, pkgname, must_exist):
+    def stub(args: PmbArgs, pkgname, must_exist):
         return {"arch": ["armv7"],
                 "depends": ["testdepend"],
                 "pkgname": "testpkgname",
@@ -49,7 +50,7 @@ def test_helpers_package_get_pmaports_and_cache(args, monkeypatch):
     assert func(args, "testpkgname", "armv7") == package
 
 
-def test_helpers_package_get_apkindex(args, monkeypatch):
+def test_helpers_package_get_apkindex(args: PmbArgs, monkeypatch):
     """ Test pmb.helpers.package.get(): find in apkindex """
 
     # Fake APKINDEX data
@@ -59,7 +60,7 @@ def test_helpers_package_get_apkindex(args, monkeypatch):
                           "provides": ["testprovide"],
                           "version": "1.0-r1"}
 
-    def stub(args, pkgname, arch, must_exist):
+    def stub(args: PmbArgs, pkgname, arch, must_exist):
         if arch != fake_apkindex_data["arch"]:
             return None
         return fake_apkindex_data
@@ -78,7 +79,7 @@ def test_helpers_package_get_apkindex(args, monkeypatch):
     assert func(args, "testpkgname", "x86_64") == package
 
 
-def test_helpers_package_depends_recurse(args):
+def test_helpers_package_depends_recurse(args: PmbArgs):
     """ Test pmb.helpers.package.depends_recurse() """
 
     # Put fake data into the pmb.helpers.package.get() cache
@@ -98,7 +99,7 @@ def test_helpers_package_depends_recurse(args):
     assert func(args, "d", "armhf") == ["b", "d"]
 
 
-def test_helpers_package_check_arch_package(args):
+def test_helpers_package_check_arch_package(args: PmbArgs):
     """ Test pmb.helpers.package.check_arch(): binary = True """
     # Put fake data into the pmb.helpers.package.get() cache
     func = pmb.helpers.package.check_arch
@@ -121,12 +122,12 @@ def test_helpers_package_check_arch_package(args):
     assert func(args, "a", "armhf") is False
 
 
-def test_helpers_package_check_arch_pmaports(args, monkeypatch):
+def test_helpers_package_check_arch_pmaports(args: PmbArgs, monkeypatch):
     """ Test pmb.helpers.package.check_arch(): binary = False """
     func = pmb.helpers.package.check_arch
     fake_pmaport = {"arch": []}
 
-    def fake_pmaports_get(args, pkgname, must_exist=False):
+    def fake_pmaports_get(args: PmbArgs, pkgname, must_exist=False):
         return fake_pmaport
     monkeypatch.setattr(pmb.helpers.pmaports, "get", fake_pmaports_get)
 

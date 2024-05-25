@@ -1,6 +1,8 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
+from pmb.core import get_context
+from pmb.helpers import logging
+from pmb.types import PmbArgs
 import pytest
 import sys
 import shutil
@@ -20,7 +22,7 @@ def args(tmpdir, request):
     sys.argv = ["pmbootstrap.py", "--config-channels", cfg, "build", "-i",
                 "device-testsuite-testdevice"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
 
@@ -31,14 +33,14 @@ def args(tmpdir, request):
     args.aports = tmpdir
 
     # Copy the devicepkg-dev package (shared device-* APKBUILD code)
-    pmb.helpers.run.user(args, ["mkdir", "-p", tmpdir + "/main"])
+    pmb.helpers.run.user(["mkdir", "-p", tmpdir + "/main"])
     path_dev = args._aports_real + "/main/devicepkg-dev"
-    pmb.helpers.run.user(args, ["cp", "-r", path_dev, tmpdir + "/main"])
+    pmb.helpers.run.user(["cp", "-r", path_dev, tmpdir + "/main"])
 
     # Copy the linux-lg-mako aport (we currently copy patches from there)
-    pmb.helpers.run.user(args, ["mkdir", "-p", tmpdir + "/device/testing"])
+    pmb.helpers.run.user(["mkdir", "-p", tmpdir + "/device/testing"])
     path_mako = args._aports_real + "/device/testing/linux-lg-mako"
-    pmb.helpers.run.user(args, ["cp", "-r", path_mako,
+    pmb.helpers.run.user(["cp", "-r", path_mako,
                                 f"{tmpdir}/device/testing"])
 
     # Copy pmaports.cfg
@@ -46,7 +48,7 @@ def args(tmpdir, request):
     return args
 
 
-def generate(args, monkeypatch, answers):
+def generate(args: PmbArgs, monkeypatch, answers):
     """
     Generate the device-new-device and linux-new-device aports (with a patched
     pmb.helpers.cli()).
@@ -72,9 +74,10 @@ def generate(args, monkeypatch, answers):
     pmb.aportgen.generate(args, "linux-testsuite-testdevice")
     monkeypatch.undo()
 
-    apkbuild_path = (f"{args.aports}/device/testing/"
+    aports = get_context().config.aports
+    apkbuild_path = (aports / "device/testing/"
                      "device-testsuite-testdevice/APKBUILD")
-    apkbuild_path_linux = (args.aports + "/device/testing/"
+    apkbuild_path_linux = (aports / "device/testing/"
                            "linux-testsuite-testdevice/APKBUILD")
 
     # The build fails if the email is not a valid email, so remove them just
@@ -87,11 +90,11 @@ def generate(args, monkeypatch, answers):
     apkbuild = pmb.parse.apkbuild(apkbuild_path)
     apkbuild_linux = pmb.parse.apkbuild(apkbuild_path_linux,
                                         check_pkgver=False)
-    deviceinfo = pmb.parse.deviceinfo(args, "testsuite-testdevice")
+    deviceinfo = pmb.parse.deviceinfo("testsuite-testdevice")
     return (deviceinfo, apkbuild, apkbuild_linux)
 
 
-def remove_contributor_maintainer_lines(args, path):
+def remove_contributor_maintainer_lines(path):
     with open(path, "r+", encoding="utf-8") as handle:
         lines_new = []
         for line in handle.readlines():
@@ -106,7 +109,7 @@ def remove_contributor_maintainer_lines(args, path):
         handle.truncate()
 
 
-def test_aportgen_device_wizard(args, monkeypatch):
+def test_aportgen_device_wizard(args: PmbArgs, monkeypatch):
     """
     Generate a device-testsuite-testdevice and linux-testsuite-testdevice
     package multiple times and check if the output is correct. Also build the

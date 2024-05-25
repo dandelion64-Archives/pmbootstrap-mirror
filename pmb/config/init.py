@@ -1,14 +1,18 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
+from pmb.core import get_context
+from pmb.core.chroot import Chroot
+from pmb.helpers import logging
 import glob
 import json
 import os
 import shutil
+from typing import Any, List
 
 import pmb.aportgen
 import pmb.config
 import pmb.config.pmaports
+from pmb.types import PmbArgs
 import pmb.helpers.cli
 import pmb.helpers.devices
 import pmb.helpers.git
@@ -34,7 +38,7 @@ def require_programs():
                            f" {', '.join(missing)}")
 
 
-def ask_for_username(args):
+def ask_for_username(args: PmbArgs):
     """Ask for a reasonable username for the non-root user.
 
     :returns: the username
@@ -50,7 +54,7 @@ def ask_for_username(args):
         return ret
 
 
-def ask_for_work_path(args):
+def ask_for_work_path(args: PmbArgs):
     """Ask for the work path, until we can create it (when it does not exist) and write into it.
 
     :returns: (path, exists)
@@ -64,7 +68,7 @@ def ask_for_work_path(args):
     while True:
         try:
             work = os.path.expanduser(pmb.helpers.cli.ask(
-                "Work path", None, args.work, False))
+                "Work path", None, get_context().config.work, False))
             work = os.path.realpath(work)
             exists = os.path.exists(work)
 
@@ -97,14 +101,14 @@ def ask_for_work_path(args):
                           " inside it! Please try again.")
 
 
-def ask_for_channel(args):
+def ask_for_channel(args: PmbArgs):
     """Ask for the postmarketOS release channel.
     The channel dictates, which pmaports branch pmbootstrap will check out,
     and which repository URLs will be used when initializing chroots.
 
     :returns: channel name (e.g. "edge", "v21.03")
     """
-    channels_cfg = pmb.helpers.git.parse_channels_cfg(args)
+    channels_cfg = pmb.helpers.git.parse_channels_cfg(get_context().config.aports)
     count = len(channels_cfg["channels"])
 
     # List channels
@@ -120,7 +124,7 @@ def ask_for_channel(args):
     # Otherwise, if valid: channel from pmaports.cfg of current branch
     # The actual channel name is not saved in pmbootstrap.cfg, because then we
     # would need to sync it with what is checked out in pmaports.git.
-    default = pmb.config.pmaports.read_config(args)["channel"]
+    default = pmb.config.pmaports.read_config()["channel"]
     choices = channels_cfg["channels"].keys()
     if args.is_default_channel or default not in choices:
         default = channels_cfg["meta"]["recommended"]
@@ -135,14 +139,14 @@ def ask_for_channel(args):
                       " from the list above.")
 
 
-def ask_for_ui(args, info):
-    ui_list = pmb.helpers.ui.list(args, info["arch"])
+def ask_for_ui(args: PmbArgs, info):
+    ui_list = pmb.helpers.ui.list_ui(args, info["arch"])
     hidden_ui_count = 0
     device_is_accelerated = info.get("gpu_accelerated") == "true"
     if not device_is_accelerated:
         for i in reversed(range(len(ui_list))):
             pkgname = f"postmarketos-ui-{ui_list[i][0]}"
-            apkbuild = pmb.helpers.pmaports.get(args, pkgname,
+            apkbuild = pmb.helpers.pmaports.get(pkgname,
                                                 subpackages=False,
                                                 must_exist=False)
             if apkbuild and "pmb:gpu-accel" in apkbuild["options"]:
@@ -150,7 +154,7 @@ def ask_for_ui(args, info):
                 hidden_ui_count += 1
 
     # Get default
-    default = args.ui
+    default: Any = args.ui
     if default not in dict(ui_list).keys():
         default = pmb.config.defaults["ui"]
 
@@ -172,8 +176,8 @@ def ask_for_ui(args, info):
                       " one from the list above.")
 
 
-def ask_for_ui_extras(args, ui):
-    apkbuild = pmb.helpers.pmaports.get(args, f"postmarketos-ui-{ui}",
+def ask_for_ui_extras(args: PmbArgs, ui):
+    apkbuild = pmb.helpers.pmaports.get(f"postmarketos-ui-{ui}",
                                         subpackages=False, must_exist=False)
     if not apkbuild:
         return False
@@ -189,16 +193,16 @@ def ask_for_ui_extras(args, ui):
                                    default=args.ui_extras)
 
 
-def ask_for_systemd(args, ui):
-    if "systemd" not in pmb.config.pmaports.read_config_repos(args):
+def ask_for_systemd(args: PmbArgs, ui):
+    if "systemd" not in pmb.config.pmaports.read_config_repos():
         return args.systemd
 
-    if pmb.helpers.ui.check_option(args, ui, "pmb:systemd-never"):
+    if pmb.helpers.ui.check_option(ui, "pmb:systemd-never"):
         logging.info("Based on your UI selection, OpenRC will be used as init"
                      " system. This UI does not support systemd.")
         return args.systemd
 
-    default_is_systemd = pmb.helpers.ui.check_option(args, ui, "pmb:systemd")
+    default_is_systemd = pmb.helpers.ui.check_option(ui, "pmb:systemd")
     not_str = " " if default_is_systemd else " not "
     logging.info("Based on your UI selection, 'default' will result"
                  f" in{not_str}installing systemd.")
@@ -212,7 +216,7 @@ def ask_for_systemd(args, ui):
     return answer
 
 
-def ask_for_keymaps(args, info):
+def ask_for_keymaps(args: PmbArgs, info):
     if "keymaps" not in info or info["keymaps"].strip() == "":
         return ""
     options = info["keymaps"].split(' ')
@@ -230,7 +234,7 @@ def ask_for_keymaps(args, info):
                       " one from the list above.")
 
 
-def ask_for_timezone(args):
+def ask_for_timezone(args: PmbArgs):
     localtimes = ["/etc/zoneinfo/localtime", "/etc/localtime"]
     zoneinfo_path = "/usr/share/zoneinfo/"
     for localtime in localtimes:
@@ -256,7 +260,7 @@ def ask_for_timezone(args):
     return "GMT"
 
 
-def ask_for_provider_select(args, apkbuild, providers_cfg):
+def ask_for_provider_select(args: PmbArgs, apkbuild, providers_cfg):
     """Ask for selectable providers that are specified using "_pmb_select" in a APKBUILD.
 
     :param apkbuild: the APKBUILD with the _pmb_select
@@ -264,7 +268,7 @@ def ask_for_provider_select(args, apkbuild, providers_cfg):
                           providers. Updated with new providers after selection
     """
     for select in apkbuild["_pmb_select"]:
-        providers = pmb.helpers.pmaports.find_providers(args, select)
+        providers = pmb.helpers.pmaports.find_providers(select)
         logging.info(f"Available providers for {select} ({len(providers)}):")
 
         has_default = False
@@ -311,7 +315,7 @@ def ask_for_provider_select(args, apkbuild, providers_cfg):
                           " one from the list above.")
 
 
-def ask_for_provider_select_pkg(args, pkgname, providers_cfg):
+def ask_for_provider_select_pkg(args: PmbArgs, pkgname, providers_cfg):
     """Look up the APKBUILD for the specified pkgname and ask for selectable
     providers that are specified using "_pmb_select".
 
@@ -319,7 +323,7 @@ def ask_for_provider_select_pkg(args, pkgname, providers_cfg):
     :param providers_cfg: the configuration section with previously selected
                           providers. Updated with new providers after selection
     """
-    apkbuild = pmb.helpers.pmaports.get(args, pkgname,
+    apkbuild = pmb.helpers.pmaports.get(pkgname,
                                         subpackages=False, must_exist=False)
     if not apkbuild:
         return
@@ -327,7 +331,7 @@ def ask_for_provider_select_pkg(args, pkgname, providers_cfg):
     ask_for_provider_select(args, apkbuild, providers_cfg)
 
 
-def ask_for_device_kernel(args, device):
+def ask_for_device_kernel(args: PmbArgs, device: str):
     """Ask for the kernel that should be used with the device.
 
     :param device: code name, e.g. "lg-mako"
@@ -338,7 +342,7 @@ def ask_for_device_kernel(args, device):
 
     """
     # Get kernels
-    kernels = pmb.parse._apkbuild.kernels(args, device)
+    kernels = pmb.parse._apkbuild.kernels(device)
     if not kernels:
         return args.kernel
 
@@ -371,7 +375,7 @@ def ask_for_device_kernel(args, device):
     return ret
 
 
-def ask_for_device(args):
+def ask_for_device(args: PmbArgs):
     """
     Prompt for the device vendor, model, and kernel.
 
@@ -380,7 +384,7 @@ def ask_for_device(args):
         * device_exists: bool indicating if device port exists in repo
         * kernel: type of kernel (downstream, etc)
     """
-    vendors = sorted(pmb.helpers.devices.list_vendors(args))
+    vendors = sorted(pmb.helpers.devices.list_vendors(get_context().config.aports))
     logging.info("Choose your target device vendor (either an "
                  "existing one, or a new one for porting).")
     logging.info(f"Available vendors ({len(vendors)}): {', '.join(vendors)}")
@@ -406,7 +410,7 @@ def ask_for_device(args):
         else:
             # Archived devices can be selected, but are not displayed
             devices = sorted(pmb.helpers.devices.list_codenames(
-                args, vendor, archived=False))
+                get_context().config.aports, vendor, archived=False))
             # Remove "vendor-" prefixes from device list
             codenames = [x.split('-', 1)[1] for x in devices]
             logging.info(f"Available codenames ({len(codenames)}): " +
@@ -419,9 +423,8 @@ def ask_for_device(args):
                                        codenames)
 
         device = f"{vendor}-{codename}"
-        device_path = pmb.helpers.devices.find_path(args, device, 'deviceinfo')
-        device_exists = device_path is not None
-        if not device_exists:
+        device_path = pmb.helpers.devices.find_path(device, 'deviceinfo')
+        if device_path is None:
             if device == args.device:
                 raise RuntimeError(
                     "This device does not exist anymore, check"
@@ -437,7 +440,7 @@ def ask_for_device(args):
             logging.info("Generating new aports for: {}...".format(device))
             pmb.aportgen.generate(args, f"device-{device}")
             pmb.aportgen.generate(args, f"linux-{device}")
-        elif "/archived/" in device_path:
+        elif any("archived" == x for x in device_path.parts):
             apkbuild = f"{device_path[:-len('deviceinfo')]}APKBUILD"
             archived = pmb.parse._apkbuild.archived(apkbuild)
             logging.info(f"WARNING: {device} is archived: {archived}")
@@ -446,18 +449,19 @@ def ask_for_device(args):
         break
 
     kernel = ask_for_device_kernel(args, device)
-    return (device, device_exists, kernel)
+    return (device, device_path is not None, kernel)
 
 
-def ask_for_additional_options(args, cfg):
+def ask_for_additional_options(args: PmbArgs, cfg):
+    context = pmb.core.get_context()
     # Allow to skip additional options
     logging.info("Additional options:"
                  f" extra free space: {args.extra_space} MB,"
                  f" boot partition size: {args.boot_size} MB,"
                  f" parallel jobs: {args.jobs},"
                  f" ccache per arch: {args.ccache_size},"
-                 f" sudo timer: {args.sudo_timer},"
-                 f" mirror: {','.join(args.mirrors_postmarketos)}")
+                 f" sudo timer: {context.sudo_timer},"
+                 f" mirror: {','.join(context.config.mirrors_postmarketos)}")
 
     if not pmb.helpers.cli.confirm(args, "Change them?",
                                    default=False):
@@ -508,23 +512,23 @@ def ask_for_additional_options(args, cfg):
                  " that you'll have to authorize sudo more than once.")
     answer = pmb.helpers.cli.confirm(args, "Enable background timer to prevent"
                                      " repeated sudo authorization?",
-                                     default=args.sudo_timer)
+                                     default=context.sudo_timer)
     cfg["pmbootstrap"]["sudo_timer"] = str(answer)
 
     # Mirrors
     # prompt for mirror change
     logging.info("Selected mirror:"
-                 f" {','.join(args.mirrors_postmarketos)}")
+                 f" {','.join(context.config.mirrors_postmarketos)}")
     if pmb.helpers.cli.confirm(args, "Change mirror?", default=False):
         mirrors = ask_for_mirror(args)
         cfg["pmbootstrap"]["mirrors_postmarketos"] = ",".join(mirrors)
 
 
-def ask_for_mirror(args):
+def ask_for_mirror(args: PmbArgs):
     regex = "^[1-9][0-9]*$"  # single non-zero number only
 
     json_path = pmb.helpers.http.download(
-        args, "https://postmarketos.org/mirrors.json", "pmos_mirrors",
+        "https://postmarketos.org/mirrors.json", "pmos_mirrors",
         cache=False)
     with open(json_path, "rt") as handle:
         s = handle.read()
@@ -555,13 +559,13 @@ def ask_for_mirror(args):
             urls.append(link_list[0])
 
     mirror_indexes = []
-    for mirror in args.mirrors_postmarketos:
+    for mirror in get_context().config.mirrors_postmarketos:
         for i in range(len(urls)):
             if urls[i] == mirror:
                 mirror_indexes.append(str(i + 1))
                 break
 
-    mirrors_list = []
+    mirrors_list: List[str] = []
     # require one valid mirror index selected by user
     while len(mirrors_list) != 1:
         answer = pmb.helpers.cli.ask("Select a mirror", None,
@@ -578,7 +582,7 @@ def ask_for_mirror(args):
     return mirrors_list
 
 
-def ask_for_hostname(args, device):
+def ask_for_hostname(args: PmbArgs, device):
     while True:
         ret = pmb.helpers.cli.ask("Device hostname (short form, e.g. 'foo')",
                                   None, (args.hostname or device), True)
@@ -590,7 +594,7 @@ def ask_for_hostname(args, device):
         return ret
 
 
-def ask_for_ssh_keys(args):
+def ask_for_ssh_keys(args: PmbArgs):
     if not len(glob.glob(os.path.expanduser("~/.ssh/id_*.pub"))):
         return False
     return pmb.helpers.cli.confirm(args,
@@ -599,7 +603,7 @@ def ask_for_ssh_keys(args):
                                    default=args.ssh_keys)
 
 
-def ask_build_pkgs_on_install(args):
+def ask_build_pkgs_on_install(args: PmbArgs):
     logging.info("After pmaports are changed, the binary packages may be"
                  " outdated. If you want to install postmarketOS without"
                  " changes, reply 'n' for a faster installation.")
@@ -617,7 +621,7 @@ def get_locales():
     return ret
 
 
-def ask_for_locale(args):
+def ask_for_locale(args: PmbArgs):
     locales = get_locales()
     logging.info("Choose your preferred locale, like e.g. en_US. Only UTF-8"
                  " is supported, it gets appended automatically. Use"
@@ -640,68 +644,68 @@ def ask_for_locale(args):
         return f"{ret}.UTF-8"
 
 
-def frontend(args):
+def frontend(args: PmbArgs):
     require_programs()
 
     # Work folder (needs to be first, so we can create chroots early)
-    cfg = pmb.config.load(args)
-    work, work_exists = ask_for_work_path(args)
-    cfg["pmbootstrap"]["work"] = work
+    config = pmb.config.load(args)
+    config.work, work_exists = ask_for_work_path(args)
 
     # Update args and save config (so chroots and 'pmbootstrap log' work)
-    pmb.helpers.args.update_work(args, work)
-    pmb.config.save(args, cfg)
+    pmb.helpers.args.update_work(args, config.work)
+    pmb.config.save(args.config, config)
 
     # Migrate work dir if necessary
     pmb.helpers.other.migrate_work_folder(args)
 
     # Clone pmaports
-    pmb.config.pmaports.init(args)
+    pmb.config.pmaports.init()
 
     # Choose release channel, possibly switch pmaports branch
     channel = ask_for_channel(args)
     pmb.config.pmaports.switch_to_channel_branch(args, channel)
-    cfg["pmbootstrap"]["is_default_channel"] = "False"
+    # FIXME: ???
+    config.is_default_channel = False
 
     # Copy the git hooks if master was checked out. (Don't symlink them and
     # only do it on master, so the git hooks don't change unexpectedly when
     # having a random branch checked out.)
-    branch_current = pmb.helpers.git.rev_parse(args, args.aports,
+    branch_current = pmb.helpers.git.rev_parse(get_context().config.aports,
                                                extra_args=["--abbrev-ref"])
     if branch_current == "master":
         logging.info("NOTE: pmaports is on master branch, copying git hooks.")
-        pmb.config.pmaports.install_githooks(args)
+        pmb.config.pmaports.install_githooks()
 
     # Device
     device, device_exists, kernel = ask_for_device(args)
-    cfg["pmbootstrap"]["device"] = device
-    cfg["pmbootstrap"]["kernel"] = kernel
+    config.device = device
+    config.kernel = kernel
 
     info = pmb.parse.deviceinfo(args, device)
-    apkbuild_path = pmb.helpers.devices.find_path(args, device, 'APKBUILD')
+    apkbuild_path = pmb.helpers.devices.find_path(device, 'APKBUILD')
     if apkbuild_path:
         apkbuild = pmb.parse.apkbuild(apkbuild_path)
-        ask_for_provider_select(args, apkbuild, cfg["providers"])
+        ask_for_provider_select(args, apkbuild, config.providers)
 
     # Device keymap
     if device_exists:
-        cfg["pmbootstrap"]["keymap"] = ask_for_keymaps(args, info)
+        config.keymap = ask_for_keymaps(args, info)
 
-    cfg["pmbootstrap"]["user"] = ask_for_username(args)
-    ask_for_provider_select_pkg(args, "postmarketos-base", cfg["providers"])
-    ask_for_provider_select_pkg(args, "postmarketos-base-ui", cfg["providers"])
+    config.user = ask_for_username(args)
+    ask_for_provider_select_pkg(args, "postmarketos-base", config.providers)
+    ask_for_provider_select_pkg(args, "postmarketos-base-ui", config.providers)
 
     # UI and various build options
     ui = ask_for_ui(args, info)
-    cfg["pmbootstrap"]["ui"] = ui
-    cfg["pmbootstrap"]["ui_extras"] = str(ask_for_ui_extras(args, ui))
+    config.ui = ui
+    config.ui_extras = ask_for_ui_extras(args, ui)
 
     # systemd
-    cfg["pmbootstrap"]["systemd"] = ask_for_systemd(args, ui)
+    config.systemd = ask_for_systemd(args, ui)
 
     ask_for_provider_select_pkg(args, f"postmarketos-ui-{ui}",
-                                cfg["providers"])
-    ask_for_additional_options(args, cfg)
+                                config.providers)
+    ask_for_additional_options(args, config)
 
     # Extra packages to be installed to rootfs
     logging.info("Additional packages that will be installed to rootfs."
@@ -710,33 +714,32 @@ def frontend(args):
     extra = pmb.helpers.cli.ask("Extra packages", None,
                                 args.extra_packages,
                                 validation_regex=r"^([-.+\w]+)(,[-.+\w]+)*$")
-    cfg["pmbootstrap"]["extra_packages"] = extra
+    config.extra_packages = extra
 
     # Configure timezone info
-    cfg["pmbootstrap"]["timezone"] = ask_for_timezone(args)
+    config.timezone = ask_for_timezone(args)
 
     # Locale
-    cfg["pmbootstrap"]["locale"] = ask_for_locale(args)
+    config.locale = ask_for_locale(args)
 
     # Hostname
-    cfg["pmbootstrap"]["hostname"] = ask_for_hostname(args, device)
+    config.hostname = ask_for_hostname(args, device)
 
     # SSH keys
-    cfg["pmbootstrap"]["ssh_keys"] = str(ask_for_ssh_keys(args))
+    config.ssh_keys = ask_for_ssh_keys(args)
 
     # pmaports path (if users change it with: 'pmbootstrap --aports=... init')
-    cfg["pmbootstrap"]["aports"] = args.aports
+    config.aports = get_context().config.aports
 
     # Build outdated packages in pmbootstrap install
-    cfg["pmbootstrap"]["build_pkgs_on_install"] = str(
-        ask_build_pkgs_on_install(args))
+    config.build_pkgs_on_install = ask_build_pkgs_on_install(args)
 
     # Save config
-    pmb.config.save(args, cfg)
+    pmb.config.save(args.config, config)
 
     # Zap existing chroots
     if (work_exists and device_exists and
-            len(glob.glob(args.work + "/chroot_*")) and
+            len(list(Chroot.iter_patterns())) and
             pmb.helpers.cli.confirm(
                 args, "Zap existing chroots to apply configuration?",
                 default=True)):

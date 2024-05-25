@@ -1,6 +1,7 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
+from pmb.types import PmbArgs
 import pytest
 import shutil
 import sys
@@ -16,13 +17,13 @@ def args(request):
     import pmb.parse
     sys.argv = ["pmbootstrap", "lint"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def test_pmbootstrap_lint(args, tmpdir):
+def test_pmbootstrap_lint(args: PmbArgs, tmpdir):
     args.aports = tmpdir = str(tmpdir)
 
     # Create hello-world pmaport in tmpdir
@@ -35,7 +36,7 @@ def test_pmbootstrap_lint(args, tmpdir):
     assert pmb.helpers.lint.check(args, ["hello-world"]) == ""
 
     # Change "pmb:cross-native" to non-existing "pmb:invalid-opt"
-    pmb.helpers.run.user(args, ["sed", "s/pmb:cross-native/pmb:invalid-opt/g",
+    pmb.helpers.run.user(["sed", "s/pmb:cross-native/pmb:invalid-opt/g",
                                 "-i", apkbuild_tmp])
 
     # Lint error

@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import datetime
 import fnmatch
-import logging
+from pmb.helpers import logging
 import os
 import re
 import urllib.parse
-from typing import Optional
+from typing import Dict, Optional
 
+from pmb.types import PmbArgs
 import pmb.helpers.file
 import pmb.helpers.http
 import pmb.helpers.pmaports
 
-req_headers = None
-req_headers_github = None
+req_headers: Dict[str, str]
+req_headers_github: Dict[str, str]
 
 ANITYA_API_BASE = "https://release-monitoring.org/api/v2"
 GITHUB_API_BASE = "https://api.github.com"
@@ -95,7 +96,7 @@ def get_package_version_info_gitlab(gitlab_host: str, repo_name: str,
     }
 
 
-def upgrade_git_package(args, pkgname: str, package) -> None:
+def upgrade_git_package(args: PmbArgs, pkgname: str, package) -> None:
     """Update _commit/pkgver/pkgrel in a git-APKBUILD (or pretend to do it if args.dry is set).
 
     :param pkgname: the package name
@@ -170,7 +171,7 @@ def upgrade_git_package(args, pkgname: str, package) -> None:
     return
 
 
-def upgrade_stable_package(args, pkgname: str, package) -> None:
+def upgrade_stable_package(args: PmbArgs, pkgname: str, package) -> None:
     """
     Update _commit/pkgver/pkgrel in an APKBUILD (or pretend to do it if
     args.dry is set).
@@ -252,7 +253,7 @@ def upgrade_stable_package(args, pkgname: str, package) -> None:
     return
 
 
-def upgrade(args, pkgname, git=True, stable=True) -> None:
+def upgrade(args: PmbArgs, pkgname, git=True, stable=True) -> None:
     """Find new versions of a single package and upgrade it.
 
     :param pkgname: the name of the package
@@ -262,7 +263,7 @@ def upgrade(args, pkgname, git=True, stable=True) -> None:
     # Initialize request headers
     init_req_headers()
 
-    package = pmb.helpers.pmaports.get(args, pkgname)
+    package = pmb.helpers.pmaports.get(pkgname)
     # Run the correct function
     if "_git" in package["pkgver"]:
         if git:
@@ -272,7 +273,7 @@ def upgrade(args, pkgname, git=True, stable=True) -> None:
             upgrade_stable_package(args, pkgname, package)
 
 
-def upgrade_all(args) -> None:
+def upgrade_all(args: PmbArgs) -> None:
     """Upgrade all packages, based on args.all, args.all_git and args.all_stable."""
     for pkgname in pmb.helpers.pmaports.get_list(args):
         # Always ignore postmarketOS-specific packages that have no upstream

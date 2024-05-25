@@ -1,6 +1,7 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import sys
+from pmb.types import PmbArgs
 import pytest
 
 import pmb_test  # noqa
@@ -19,12 +20,12 @@ def args(request):
     return args
 
 
-def test_get_folder_size(args, tmpdir):
+def test_get_folder_size(args: PmbArgs, tmpdir):
     # Write five 200 KB files to tmpdir
     tmpdir = str(tmpdir)
     files = 5
     for i in range(files):
-        pmb.helpers.run.user(args, ["dd", "if=/dev/zero", "of=" +
+        pmb.helpers.run.user(["dd", "if=/dev/zero", "of=" +
                                     tmpdir + "/" + str(i), "bs=1K",
                                     "count=200", "conv=notrunc"])
 

@@ -7,6 +7,7 @@ via SSH if expected processes are running.
 We use an extra config file (based on ~/.config/pmbootstrap.cfg), because we
 need to change it a lot (e.g. UI, username, ...).
 """
+from pmb.types import PmbArgs
 import pytest
 import sys
 import shutil
@@ -26,27 +27,27 @@ def args(request):
     import pmb.parse
     sys.argv = ["pmbootstrap.py", "chroot"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
 
 
-def ssh_create_askpass_script(args):
+def ssh_create_askpass_script(args: PmbArgs):
     """Create /tmp/y.sh, which we need to automatically login via SSH."""
-    with open(args.work + "/chroot_native/tmp/y.sh", "w") as handle:
+    with open(get_context().config.work / "chroot_native/tmp/y.sh", "w") as handle:
         handle.write("#!/bin/sh\necho y\n")
-    pmb.chroot.root(args, ["chmod", "+x", "/tmp/y.sh"])
+    pmb.chroot.root(["chmod", "+x", "/tmp/y.sh"])
 
 
-def pmbootstrap_run(args, config, parameters, output="log"):
+def pmbootstrap_run(args: PmbArgs, config, parameters, output="log"):
     """Execute pmbootstrap.py with a test pmbootstrap.conf."""
-    return pmb.helpers.run.user(args, ["./pmbootstrap.py", "-c", config] +
+    return pmb.helpers.run.user(["./pmbootstrap.py", "-c", config] +
                                 parameters, working_dir=pmb.config.pmb_src,
                                 output=output)
 
 
-def pmbootstrap_yes(args, config, parameters):
+def pmbootstrap_yes(args: PmbArgs, config, parameters):
     """
     Execute pmbootstrap.py with a test pmbootstrap.conf, and pipe "yes" into it
     (so we can do a fully automated installation, using "y" as password
@@ -58,7 +59,7 @@ def pmbootstrap_yes(args, config, parameters):
                shlex.quote(config))
     for parameter in parameters:
         command += " " + shlex.quote(parameter)
-    return pmb.helpers.run.user(args, ["/bin/sh", "-c", command],
+    return pmb.helpers.run.user(["/bin/sh", "-c", command],
                                 working_dir=pmb.config.pmb_src)
 
 
@@ -86,7 +87,7 @@ class QEMU(object):
 
         # Prepare native chroot
         pmbootstrap_run(args, config, ["-y", "zap"])
-        pmb.chroot.apk.install(args, ["openssh-client"])
+        pmb.chroot.apk.install(["openssh-client"])
         ssh_create_askpass_script(args)
 
         # Create and run rootfs
@@ -100,14 +101,14 @@ def qemu(request):
     return QEMU(request)
 
 
-def ssh_run(args, command):
+def ssh_run(args: PmbArgs, command):
     """
     Run a command in the QEMU VM on localhost via SSH.
 
     :param command: flat string of the command to execute, e.g. "ps au"
     :returns: the result from the SSH server
     """
-    ret = pmb.chroot.user(args, ["SSH_ASKPASS=/tmp/y.sh", "DISPLAY=", "ssh",
+    ret = pmb.chroot.user(["SSH_ASKPASS=/tmp/y.sh", "DISPLAY=", "ssh",
                                  "-o", "ConnectTimeout=10",
                                  "-o", "UserKnownHostsFile=/dev/null",
                                  "-o", "StrictHostKeyChecking=no",
@@ -116,7 +117,7 @@ def ssh_run(args, command):
     return ret
 
 
-def is_running(args, programs, timeout=300, sleep_before_retry=1):
+def is_running(args: PmbArgs, programs, timeout=300, sleep_before_retry=1):
     """
     Simple check that looks for program names in the output of "ps ax".
     This is error-prone, only use it with programs that have a unique name.
@@ -132,7 +133,7 @@ def is_running(args, programs, timeout=300, sleep_before_retry=1):
     ssh_works = False
 
     end = time.monotonic() + timeout
-    last_try = 0
+    last_try = 0.0
 
     while last_try < end:
         # Sleep only when last try exited immediately
@@ -165,7 +166,7 @@ def is_running(args, programs, timeout=300, sleep_before_retry=1):
 
 
 @pytest.mark.skip_ci
-def test_none(args, tmpdir, qemu):
+def test_none(args: PmbArgs, tmpdir, qemu):
     qemu.run(args, tmpdir)
 
     # Check that at least SSH works (no special process running)
@@ -177,14 +178,14 @@ def test_none(args, tmpdir, qemu):
 
 
 @pytest.mark.skip_ci
-def test_xfce4(args, tmpdir, qemu):
+def test_xfce4(args: PmbArgs, tmpdir, qemu):
     qemu.run(args, tmpdir, "xfce4")
     assert is_running(args, ["xfce4-session", "xfdesktop", "xfce4-panel",
                              "Thunar", "dbus-daemon", "xfwm4"])
 
 
 @pytest.mark.skip_ci
-def test_plasma_mobile(args, tmpdir, qemu):
+def test_plasma_mobile(args: PmbArgs, tmpdir, qemu):
     # NOTE: Once we have plasma mobile running properly without GL, we can
     # check for more processes
     qemu.run(args, tmpdir, "plasma-mobile")

@@ -1,14 +1,20 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
-import logging
+from pathlib import Path, PosixPath
+from typing import Any, Dict
+from pmb.helpers import logging
 import configparser
 import os
 import sys
 import pmb.config
+from pmb.types import Config
+from pmb.types import PmbArgs
+
+__cfg: configparser.ConfigParser
 
 
-def sanity_check(args, cfg, key, allowed, print_path):
-    value = cfg["pmbootstrap"][key]
+def sanity_check(args: PmbArgs, cfg: Config, key, allowed, print_path):
+    value = getattr(cfg, key)
 
     if value in allowed:
         return
@@ -22,12 +28,22 @@ def sanity_check(args, cfg, key, allowed, print_path):
     sys.exit(1)
 
 
-def sanity_checks(args, cfg, print_path=True):
+def sanity_checks(args: PmbArgs, cfg: Config, print_path=True):
     for key, allowed in pmb.config.allowed_values.items():
         sanity_check(args, cfg, key, allowed, print_path)
 
 
-def load(args):
+def get(k: str):
+    global __cfg
+    if "__cfg" in globals() and __cfg is not None:
+        return __cfg["pmbootstrap"][k]
+
+    raise RuntimeError("Config not loaded yet")
+
+
+def load(args: PmbArgs) -> Config:
+    config = Config()
+
     cfg = configparser.ConfigParser()
     if os.path.isfile(args.config):
         cfg.read(args.config)
@@ -37,21 +53,48 @@ def load(args):
     if "providers" not in cfg:
         cfg["providers"] = {}
 
-    for key in pmb.config.defaults:
-        if key in pmb.config.config_keys and key not in cfg["pmbootstrap"]:
-            cfg["pmbootstrap"][key] = str(pmb.config.defaults[key])
+    for key in Config.__dict__.keys():
+        if key == "providers":
+            setattr(config, key, cfg["providers"])
+        # Handle whacky type conversions
+        elif key == "mirrors_postmarketos":
+            config.mirrors_postmarketos = cfg["pmbootstrap"]["mirrors_postmarketos"].split(",")
+        # Convert strings to paths
+        elif type(getattr(Config, key)) == PosixPath:
+            setattr(config, key, Path(cfg["pmbootstrap"][key]))
+        elif isinstance(getattr(Config, key), bool):
+            setattr(config, key, cfg["pmbootstrap"][key].lower() == "true")
+        elif key in cfg["pmbootstrap"]:
+            setattr(config, key, cfg["pmbootstrap"][key])
 
-        # We used to save default values in the config, which can *not* be
-        # configured in "pmbootstrap init". That doesn't make sense, we always
-        # want to use the defaults from pmb/config/__init__.py in that case,
-        # not some outdated version we saved some time back (eg. aports folder,
-        # postmarketOS binary packages mirror).
-        if key not in pmb.config.config_keys and key in cfg["pmbootstrap"]:
-            logging.debug("Ignored unconfigurable and possibly outdated"
-                          " default value from config:"
-                          f" {cfg['pmbootstrap'][key]}")
-            del cfg["pmbootstrap"][key]
+    sanity_checks(args, config)
 
-    sanity_checks(args, cfg)
+    return config
 
-    return cfg
+def save(output: Path, config: Config):
+    logging.debug(f"Save config: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.touch(0o700, exist_ok=True)
+    
+    cfg = configparser.ConfigParser()
+    cfg["pmbootstrap"] = {}
+    cfg["providers"] = {}
+
+    for key in Config.__dict__.keys():
+        print(key)
+        if key == "providers":
+            setattr(config, key, cfg["providers"])
+        # Handle whacky type conversions
+        elif key == "mirrors_postmarketos":
+            cfg["pmbootstrap"]["mirrors_postmarketos"] = ",".join(config.mirrors_postmarketos)
+        # Convert strings to paths
+        elif type(getattr(Config, key)) == Path:
+            cfg["pmbootstrap"][key] = str(getattr(config, key))
+        elif isinstance(getattr(Config, key), bool):
+            cfg["pmbootstrap"][key] = str(getattr(config, key))
+        else:
+            cfg["pmbootstrap"] = getattr(config, key)
+
+    with output.open("w") as handle:
+        cfg.write(handle)
+

@@ -1,6 +1,7 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import sys
+from pmb.types import PmbArgs
 import pytest
 
 import pmb_test  # noqa
@@ -17,7 +18,7 @@ def args(tmpdir, request):
     import pmb.parse
     sys.argv = ["pmbootstrap.py", "chroot"]
     args = pmb.parse.arguments()
-    args.log = args.work + "/log_testsuite.txt"
+    args.log = get_context().config.work / "log_testsuite.txt"
     pmb.helpers.logging.init(args)
     request.addfinalizer(pmb.helpers.logging.logfd.close)
     return args
@@ -34,7 +35,7 @@ def args_patched(monkeypatch, argv):
     return pmb.parse.arguments()
 
 
-def test_config_user(args, tmpdir, monkeypatch):
+def test_config_user(args: PmbArgs, tmpdir, monkeypatch):
     # Temporary paths
     tmpdir = str(tmpdir)
     path_work = tmpdir + "/work"
@@ -46,7 +47,7 @@ def test_config_user(args, tmpdir, monkeypatch):
                                          "-w", path_work,
                                          "--aports", args.aports,
                                          "init"])
-    pmb.helpers.run.user(args, ["sh", "-c", "yes '' | " + cmd],
+    pmb.helpers.run.user(["sh", "-c", "yes '' | " + cmd],
                          pmb.config.pmb_src)
 
     # Load and verify default config

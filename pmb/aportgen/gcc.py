@@ -1,27 +1,30 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import pmb.aportgen.core
+from pmb.core import get_context
+from pmb.types import PmbArgs
 import pmb.helpers.git
 import pmb.helpers.run
 
 
-def generate(args, pkgname):
+def generate(args: PmbArgs, pkgname):
     # Copy original aport
     prefix = pkgname.split("-")[0]
     arch = pkgname.split("-")[1]
+    context = get_context()
     if prefix == "gcc":
         upstream = pmb.aportgen.core.get_upstream_aport(args, "gcc", arch)
         based_on = "main/gcc (from Alpine)"
     elif prefix == "gcc4":
-        upstream = f"{args.aports}/main/gcc4"
+        upstream = f"{context.config.aports}/main/gcc4"
         based_on = "main/gcc4 (from postmarketOS)"
     elif prefix == "gcc6":
-        upstream = f"{args.aports}/main/gcc6"
+        upstream = f"{context.config.aports}/main/gcc6"
         based_on = "main/gcc6 (from postmarketOS)"
     else:
         raise ValueError(f"Invalid prefix '{prefix}', expected gcc, gcc4 or"
                          " gcc6.")
-    pmb.helpers.run.user(args, ["cp", "-r", upstream, f"{args.work}/aportgen"])
+    pmb.helpers.run.user(["cp", "-r", upstream, context.config.work / "aportgen"])
 
     # Rewrite APKBUILD
     fields = {
@@ -87,6 +90,6 @@ def generate(args, pkgname):
         '_libgcc=true*': '_libgcc=false',
     }
 
-    pmb.aportgen.core.rewrite(args, pkgname, based_on, fields,
+    pmb.aportgen.core.rewrite(pkgname, based_on, fields,
                               replace_simple=replace_simple,
                               below_header=below_header)

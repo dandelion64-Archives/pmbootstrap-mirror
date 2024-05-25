@@ -1,32 +1,36 @@
 # Copyright 2023 Oliver Smith
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
-import logging
+from pmb.core.chroot import Chroot
+from pmb.helpers import logging
 
+from pmb.types import PmbArgs
 import pmb.helpers.run
 import pmb.helpers.other
 import pmb.parse
 import pmb.parse.arch
+import pmb.chroot.apk
 
 
 def is_registered(arch_qemu):
     return os.path.exists("/proc/sys/fs/binfmt_misc/qemu-" + arch_qemu)
 
 
-def register(args, arch):
+def register(arch):
     """
     Get arch, magic, mask.
     """
     arch_qemu = pmb.parse.arch.alpine_to_qemu(arch)
+    chroot = Chroot.native()
 
     # always make sure the qemu-<arch> binary is installed, since registering
     # may happen outside of this method (e.g. by OS)
-    if f"qemu-{arch_qemu}" not in pmb.chroot.apk.installed(args):
-        pmb.chroot.apk.install(args, ["qemu-" + arch_qemu])
+    if f"qemu-{arch_qemu}" not in pmb.chroot.apk.installed(chroot):
+        pmb.chroot.apk.install(["qemu-" + arch_qemu], chroot)
 
     if is_registered(arch_qemu):
         return
-    pmb.helpers.other.check_binfmt_misc(args)
+    pmb.helpers.other.check_binfmt_misc()
 
     # Don't continue if the actions from check_binfmt_misc caused the OS to
     # automatically register the target arch
@@ -51,14 +55,13 @@ def register(args, arch):
     # Register in binfmt_misc
     logging.info("Register qemu binfmt (" + arch_qemu + ")")
     register = "/proc/sys/fs/binfmt_misc/register"
-    pmb.helpers.run.root(
-        args, ["sh", "-c", 'echo "' + code + '" > ' + register])
+    pmb.helpers.run.root(["sh", "-c", 'echo "' + code + '" > ' + register])
 
 
-def unregister(args, arch):
+def unregister(args: PmbArgs, arch):
     arch_qemu = pmb.parse.arch.alpine_to_qemu(arch)
     binfmt_file = "/proc/sys/fs/binfmt_misc/qemu-" + arch_qemu
     if not os.path.exists(binfmt_file):
         return
     logging.info("Unregister qemu binfmt (" + arch_qemu + ")")
-    pmb.helpers.run.root(args, ["sh", "-c", "echo -1 > " + binfmt_file])
+    pmb.helpers.run.root(["sh", "-c", "echo -1 > " + binfmt_file])
