@@ -7,14 +7,14 @@ import os
 from pathlib import Path
 from typing import Dict, List
 import pmb.config
-from pmb.core.types import PmbArgs
+from pmb.types import PmbArgs
 import pmb.helpers.run
 import pmb.parse
 import pmb.helpers.mount
-from pmb.core import Chroot
+from pmb.core import Chroot, get_context
 
 
-def create_device_nodes(args: PmbArgs, chroot: Chroot):
+def create_device_nodes(chroot: Chroot):
     """
     Create device nodes for null, zero, full, random, urandom in the chroot.
     """
@@ -51,7 +51,7 @@ def create_device_nodes(args: PmbArgs, chroot: Chroot):
         raise RuntimeError(f"Failed to create device nodes in the '{chroot}' chroot.")
 
 
-def mount_dev_tmpfs(args: PmbArgs, chroot: Chroot=Chroot.native()):
+def mount_dev_tmpfs(chroot: Chroot=Chroot.native()):
     """
     Mount tmpfs inside the chroot's dev folder to make sure we can create
     device nodes, even if the filesystem of the work folder does not support
@@ -73,22 +73,22 @@ def mount_dev_tmpfs(args: PmbArgs, chroot: Chroot=Chroot.native()):
     pmb.helpers.run.root(["mount", "-t", "tmpfs",
                                 "-o", "nodev,nosuid,noexec",
                                 "tmpfs", dev / "shm"])
-    create_device_nodes(args, chroot)
+    create_device_nodes(chroot)
 
     # Setup /dev/fd as a symlink
     pmb.helpers.run.root(["ln", "-sf", "/proc/self/fd", f"{dev}/"])
 
 
-def mount(args: PmbArgs, chroot: Chroot=Chroot.native()):
+def mount(chroot: Chroot):
     # Mount tmpfs as the chroot's /dev
-    mount_dev_tmpfs(args, chroot)
+    mount_dev_tmpfs(chroot)
 
     # Get all mountpoints
     arch = chroot.arch
-    channel = pmb.config.pmaports.read_config(args)["channel"]
+    channel = pmb.config.pmaports.read_config()["channel"]
     mountpoints: Dict[Path, Path] = {}
     for src_template, target_template in pmb.config.chroot_mount_bind.items():
-        src_template = src_template.replace("$WORK", os.fspath(pmb.config.work))
+        src_template = src_template.replace("$WORK", os.fspath(get_context().config.work))
         src_template = src_template.replace("$ARCH", arch)
         src_template = src_template.replace("$CHANNEL", channel)
         mountpoints[Path(src_template)] = Path(target_template)
@@ -140,7 +140,7 @@ def unmount_native_tools(args: PmbArgs, chroot: Chroot):
     pmb.helpers.run.root(["rm", next(chroot.path.glob("lib/ld-musl-*.so.1"))])
 
 
-def mount_native_tools(args: PmbArgs, chroot: Chroot):
+def mount_native_tools(chroot: Chroot):
     """Mount additional native tools that can be run from the chroot like pigz and mkinitfs."""
     native = Chroot.native()
 
@@ -152,14 +152,14 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
         return
 
     # set up linker and library path stuff
-    mount_native_into_foreign(args, chroot)
+    mount_native_into_foreign(chroot)
 
     logging.info(f"({chroot}) mounting native tools: {', '.join(map(lambda t: t.package, tools))}")
     logging.info(tools)
 
     # Install the tool in the chroots
-    pmb.chroot.apk.install(args, list(map(lambda t: t.package, tools)), native, build=False)
-    pmb.chroot.apk.install(args, list(map(lambda t: t.package, tools)), chroot, build=False)
+    pmb.chroot.apk.install(list(map(lambda t: t.package, tools)), native, build=False)
+    pmb.chroot.apk.install(list(map(lambda t: t.package, tools)), chroot, build=False)
 
     # Bind mount binaries from the native chroot into the target chroot
     for binary in sum(map(lambda t: t.paths, tools), []):
@@ -172,7 +172,7 @@ def mount_native_tools(args: PmbArgs, chroot: Chroot):
     #pmb.helpers.run.root(["ln", "-sf", "/native/usr/bin/pigz", "/usr/local/bin/pigz"])
 
 
-def mount_native_into_foreign(args: PmbArgs, chroot: Chroot):
+def mount_native_into_foreign(chroot: Chroot):
     source = Chroot.native().path
     target = chroot / "native"
     pmb.helpers.mount.bind(source, target)

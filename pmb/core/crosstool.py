@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, TypedDict, Union
 
 from pmb.core.chroot import ChrootType
-from pmb.core.types import PathString
+from pmb.types import PathString
 
 class CrossToolTarget(enum.Enum):
     BUILDROOT = 0
